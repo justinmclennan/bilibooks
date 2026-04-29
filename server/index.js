@@ -16,14 +16,16 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const buildUserPrompt = ({ chapter, genre, level, focusVerbs, theme }) => {
+const buildUserPrompt = ({ chapter, genre, level, focusVerbs, theme, storyLength, targetLanguage, baseLanguage }) => {
   return `
+Target Language: ${targetLanguage}
+Base Language (Native): ${baseLanguage}
 Create Chapter ${chapter}.
-
 Genre: ${genre}
 Level: ${level}
-Focus verbs: ${focusVerbs}
+Focus verbs/Vocabulary: ${focusVerbs}
 Theme: ${theme}
+Story Length Preference: ${storyLength}
   `.trim();
 };
 
@@ -41,31 +43,35 @@ app.post('/api/generate-story', async (req, res) => {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  // Map frontend fields to buildUserPrompt arguments
   const userPrompt = buildUserPrompt({
     chapter: "1",
     genre: "Drama",
     level: level,
     focusVerbs: vocabulary,
     theme: storyIdea,
+    storyLength: storyLength,
+    targetLanguage: targetLanguage,
+    baseLanguage: baseLanguage,
   });
 
   try {
+    const dynamicSystemPrompt = STORY_SYSTEM_PROMPT.replace(/French/g, targetLanguage);
+
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: STORY_SYSTEM_PROMPT + `
+          content: dynamicSystemPrompt + `
 
           IMPORTANT: You MUST return the response as a JSON object with the following keys:
           - title: A creative title for the story.
-          - storyTargetLanguage: The French story paragraph.
-          - storyNativeLanguage: The English meaning paragraph.
-          - interlinearTargetFirst: The Interlinear practice section.
-          - interlinearNativeFirst: An alternative interlinear version (English first as per rules).
-          - shadowTargetOnly: The French-only shadow version.
-          - vocabularyList: An array of objects { "term": "verb", "translation": "meaning", "explanation": "usage" } based on the Focus verbs.
+          - storyTargetLanguage: The story in ${targetLanguage}.
+          - storyNativeLanguage: The story in ${baseLanguage}.
+          - interlinearTargetFirst: The Interlinear practice section (English is ${baseLanguage}, French is ${targetLanguage}).
+          - interlinearNativeFirst: An alternative interlinear version (${baseLanguage} first).
+          - shadowTargetOnly: The ${targetLanguage}-only shadow version.
+          - vocabularyList: An array of objects { "term": "word/verb", "translation": "meaning in ${baseLanguage}", "explanation": "usage note" } based on the Focus verbs.
           - ssmlScript: The SSML drill version.
           `
         },
