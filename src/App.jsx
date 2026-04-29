@@ -8,6 +8,9 @@ import Step3Results from './components/Step3Results';
 
 function App() {
   const [currentStep, setCurrentStep] = useState(1);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState(null);
+  const [storyData, setStoryData] = useState(null);
   const [formData, setFormData] = useState({
     baseLanguage: 'English',
     targetLanguage: 'Spanish',
@@ -25,6 +28,8 @@ function App() {
   const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
   const resetApp = () => {
     setCurrentStep(1);
+    setStoryData(null);
+    setError(null);
     setFormData({
       baseLanguage: 'English',
       targetLanguage: 'Spanish',
@@ -33,6 +38,33 @@ function App() {
       storyIdea: '',
       vocabulary: '',
     });
+  };
+
+  const handleGenerateStory = async () => {
+    setIsGenerating(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/generate-story', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate story');
+      }
+
+      const data = await response.json();
+      setStoryData(data);
+      nextStep();
+    } catch (err) {
+      console.error('Error:', err);
+      setError('Something went wrong while generating your story. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -80,8 +112,22 @@ function App() {
               <h1 className="font-headline-lg text-headline-lg text-on-surface">Describe Your Story</h1>
               <p className="text-on-surface-variant font-body-md mt-2">Help the AI craft the perfect learning journey for your level.</p>
             </div>
+
+            {error && (
+              <div className="mb-lg p-lg bg-error-container text-on-error-container rounded-xl border border-error/20 flex items-center gap-md">
+                <span className="material-symbols-outlined text-error">error</span>
+                <p>{error}</p>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-xl items-start">
-              <Step2Builder formData={formData} updateFormData={updateFormData} nextStep={nextStep} prevStep={prevStep} />
+              <Step2Builder
+                formData={formData}
+                updateFormData={updateFormData}
+                nextStep={handleGenerateStory}
+                prevStep={prevStep}
+                isGenerating={isGenerating}
+              />
               <aside className="lg:col-span-4 space-y-lg">
                 <div className="bg-secondary-fixed/20 border border-secondary-container rounded-xl p-lg">
                   <div className="flex items-center gap-3 mb-4">
@@ -130,7 +176,7 @@ function App() {
               <p className="font-headline-sm text-headline-sm text-on-secondary-fixed-variant">Your stories are ready!</p>
             </div>
 
-            <Step3Results formData={formData} resetApp={resetApp} />
+            <Step3Results formData={formData} storyData={storyData} resetApp={resetApp} />
           </div>
         )}
       </main>
