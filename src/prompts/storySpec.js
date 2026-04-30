@@ -91,7 +91,7 @@ OUTPUT ORDER (STRICT):
 2. French story paragraph
 3. English meaning paragraph
 4. Interlinear practice
-5. SSML drill version
+5. Audio drill source lines
 6. French-only shadow version
 
 INTERLINEAR RULES:
@@ -109,17 +109,13 @@ FR chunk 2
 FULL EN
 FULL FR
 
-SSML RULES:
-- Use valid SSML with <speak> tags
-- After EVERY line, include a break
-- Timing:
-  - EN chunk: 0.75 × number of words
-  - FR chunk: 0.5 × number of words
-  - FULL EN: 0.75 × number of words
-  - FULL FR: 0.5 × number of words
-- Round pauses to the nearest 0.25 seconds
-- Format breaks like: <break time="2.25s"/>
-- Do NOT include markdown inside SSML
+AUDIO DRILL SOURCE LINES:
+- Provide an array of objects for the audio generation.
+- Each object must have "text" (the string to speak) and "type".
+- Valid types: en_chunk, fr_chunk, en_full, fr_full, fr_shadow.
+- For Interlinear mode: follow the pattern en_chunk, fr_chunk, en_chunk, fr_chunk, en_full, fr_full.
+- For Shadow mode: provide only fr_shadow lines (sentence chunks then full sentence).
+- NO SSML TAGS. NO XML. NO MARKDOWN.
 
 SHADOW VERSION:
 - French only

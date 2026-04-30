@@ -2,7 +2,9 @@ import express from 'express';
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import { PollyClient, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
 import { STORY_SYSTEM_PROMPT } from '../src/prompts/storySpec.js';
+import { buildPollySSML } from './ssmlBuilder.js';
 
 dotenv.config();
 
@@ -14,6 +16,15 @@ app.use(express.json());
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+});
+
+// AWS Polly Client
+const pollyClient = new PollyClient({
+  region: process.env.AWS_REGION || "us-east-1",
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
+  },
 });
 
 const buildUserPrompt = ({ chapter, genre, level, focusVerbs, theme, storyLength, targetLanguage, baseLanguage }) => {
@@ -72,7 +83,7 @@ app.post('/api/generate-story', async (req, res) => {
           - interlinearNativeFirst: An alternative interlinear version (${baseLanguage} first).
           - shadowTargetOnly: The ${targetLanguage}-only shadow version.
           - vocabularyList: An array of objects { "term": "word/verb", "translation": "meaning in ${baseLanguage}", "explanation": "usage note" } based on the Focus verbs.
-          - ssmlScript: The SSML drill version.
+          - audioDrillLines: The array of objects for the Audio drill source lines section as specified.
           `
         },
         {
@@ -88,6 +99,54 @@ app.post('/api/generate-story', async (req, res) => {
   } catch (error) {
     console.error('Error generating story:', error);
     res.status(500).json({ error: 'Failed to generate story' });
+  }
+});
+
+app.post('/api/generate-audio', async (req, res) => {
+  const { lines, voiceId = "Lea", engine = "neural", outputFormat = "mp3" } = req.body;
+
+  if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+    return res.status(500).json({ error: 'AWS credentials are not configured on the server.' });
+  }
+
+  if (!lines || !Array.isArray(lines) || lines.length === 0) {
+    return res.status(400).json({ error: 'Invalid or empty lines' });
+  }
+
+  try {
+    const ssml = buildPollySSML(lines);
+
+    const command = new SynthesizeSpeechCommand({
+      Text: ssml,
+      TextType: "ssml",
+      OutputFormat: outputFormat,
+      VoiceId: voiceId,
+      Engine: engine,
+    });
+
+    const response = await pollyClient.send(command);
+
+    if (response.AudioStream) {
+      res.setHeader('Content-Type', 'audio/mpeg');
+      response.AudioStream.pipe(res);
+    } else {
+      throw new Error('Polly did not return an audio stream.');
+    }
+  } catch (error) {
+    console.error('Error generating audio:', error);
+    const errorResponse = { error: 'Failed to generate audio' };
+
+    // In development, provide more details
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        errorResponse.details = error.message;
+        errorResponse.ssml = buildPollySSML(lines);
+      } catch (ssmlError) {
+        errorResponse.ssmlError = ssmlError.message;
+      }
+    }
+
+    res.status(500).json(errorResponse);
   }
 });
 

@@ -4,7 +4,6 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
     { name: 'Story Script', type: 'PDF • 1.2 MB', icon: 'menu_book', color: 'primary', content: storyData?.storyTargetLanguage },
     { name: 'Interlinear Script', type: 'PDF • 1.5 MB', icon: 'translate', color: 'primary', content: storyData?.interlinearTargetFirst },
     { name: 'Shadow Script', type: 'PDF • 1.1 MB', icon: 'record_voice_over', color: 'primary', content: storyData?.shadowTargetOnly },
-    { name: 'SSML Script', type: 'XML • 200 KB', icon: 'code', color: 'secondary', content: storyData?.ssmlScript },
     { name: 'Vocab Flashcards', type: 'CSV • 200 KB', icon: 'quiz', color: 'tertiary', content: JSON.stringify(storyData?.vocabularyList) },
   ];
 
@@ -25,6 +24,48 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
       text: 'text-tertiary',
       hover: 'hover:bg-tertiary/5',
     },
+  };
+
+  const handleGenerateAudio = async (mode) => {
+    try {
+      const lines = storyData.audioDrillLines.filter(line => {
+        if (mode === 'shadow') return line.type === 'fr_shadow';
+        return line.type !== 'fr_shadow';
+      });
+
+      const response = await fetch('/api/generate-audio', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          lines,
+          mode,
+          voiceId: formData.targetLanguage === 'French' ? 'Lea' : 'Lucia', // Example voice logic
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to generate audio');
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.play();
+
+      // Also provide a way to download it
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `lingu_story_${mode}_audio.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Audio Generation Error:', error);
+      alert(error.message);
+    }
   };
 
   return (
@@ -89,35 +130,42 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
            </div>
         )}
 
-        {/* Audio Player Preview */}
+        {/* Audio Player Section */}
         <div className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm relative overflow-hidden">
           <div className="absolute top-0 right-0 p-lg opacity-10">
-            <span className="material-symbols-outlined text-[80px]">music_note</span>
+            <span className="material-symbols-outlined text-[80px]">headphones</span>
           </div>
-          <h3 className="font-headline-sm text-headline-sm mb-lg">Audio Preview (Placeholder)</h3>
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-lg">
-              <button className="w-14 h-14 bg-primary text-on-primary rounded-full flex items-center justify-center hover:bg-primary-container active:scale-90 transition-all shadow-lg">
-                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>play_arrow</span>
-              </button>
-              <div className="flex-grow">
-                <div className="flex justify-between items-center mb-xs">
-                  <span className="font-body-sm text-body-sm text-on-surface">Chapter 1: {storyData?.title || "The Arrival"}</span>
-                  <span className="font-body-sm text-body-sm text-on-surface-variant">0:00 / 0:00</span>
-                </div>
-                <div className="h-1.5 w-full bg-surface-container rounded-full overflow-hidden">
-                  <div className="h-full bg-primary w-0"></div>
-                </div>
-              </div>
-            </div>
+          <h3 className="font-headline-sm text-headline-sm mb-lg">Audio Drills</h3>
 
-            {/* HTML5 Audio Player with mock URL */}
-            <audio controls className="w-full mt-2">
-              <source src="" type="audio/mpeg" />
-              Your browser does not support the audio element.
-            </audio>
-            <p className="text-xs text-on-surface-variant italic text-center">Amazon Polly audio generation is coming soon!</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+            <button
+              onClick={() => handleGenerateAudio('interlinear')}
+              className="flex items-center gap-md p-lg bg-primary-fixed/20 border border-primary/20 rounded-xl hover:bg-primary-fixed/30 transition-all text-left"
+            >
+              <div className="w-12 h-12 bg-primary text-on-primary rounded-full flex items-center justify-center shadow-md">
+                <span className="material-symbols-outlined">translate</span>
+              </div>
+              <div>
+                <p className="font-bold text-on-surface">Interlinear Audio</p>
+                <p className="text-body-xs text-on-surface-variant">Bilingual practice with pauses</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => handleGenerateAudio('shadow')}
+              className="flex items-center gap-md p-lg bg-secondary-fixed/20 border border-secondary/20 rounded-xl hover:bg-secondary-fixed/30 transition-all text-left"
+            >
+              <div className="w-12 h-12 bg-secondary text-on-secondary rounded-full flex items-center justify-center shadow-md">
+                <span className="material-symbols-outlined">record_voice_over</span>
+              </div>
+              <div>
+                <p className="font-bold text-on-surface">Shadow Audio</p>
+                <p className="text-body-xs text-on-surface-variant">Target language only practice</p>
+              </div>
+            </button>
           </div>
+
+          <p className="mt-lg text-xs text-on-surface-variant italic text-center">Powered by Amazon Polly Neural voices.</p>
         </div>
       </div>
 
