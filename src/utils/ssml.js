@@ -23,63 +23,67 @@ export const escapeSsml = (text) => {
 
 export const calculatePauseSeconds = (text, multiplier) => {
   const words = countWords(text);
-  return (words * multiplier).toFixed(2);
+  let pause = words * multiplier;
+
+  // Round to nearest 0.25s
+  pause = Math.round(pause * 4) / 4;
+
+  // Cap at 10s, min 0.25s
+  pause = Math.max(0.25, Math.min(10, pause));
+
+  return pause.toFixed(2);
 };
 
 export const formatBreak = (seconds) => {
   return `<break time="${seconds}s"/>`;
 };
 
-export const generateInterlinearSsml = (lines, options = { targetFirst: true }) => {
-  const { targetFirst } = options;
-  let output = '<speak>\n';
-
-  lines.forEach((line) => {
-    const parts = targetFirst
-      ? [
-          { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.targetHalf },
-          { text: line.nativeFirstHalf, mult: PAUSE_MULTIPLIERS.native },
-          { text: line.targetSecondHalf, mult: PAUSE_MULTIPLIERS.targetHalf },
-          { text: line.nativeSecondHalf, mult: PAUSE_MULTIPLIERS.native },
-          { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat },
-          { text: line.native, mult: PAUSE_MULTIPLIERS.native },
-        ]
-      : [
-          { text: line.nativeFirstHalf, mult: PAUSE_MULTIPLIERS.native },
-          { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.targetHalf },
-          { text: line.nativeSecondHalf, mult: PAUSE_MULTIPLIERS.native },
-          { text: line.targetSecondHalf, mult: PAUSE_MULTIPLIERS.targetHalf },
-          { text: line.native, mult: PAUSE_MULTIPLIERS.native },
-          { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat },
-        ];
-
-    parts.forEach((part) => {
-      if (part.text) {
-        const escaped = escapeSsml(part.text);
-        const pause = calculatePauseSeconds(part.text, part.mult);
-        output += `  ${escaped} ${formatBreak(pause)}\n`;
-      }
-    });
-  });
-
-  output += '</speak>';
-  return output;
-};
-
-export const generateShadowSsml = (lines) => {
-  let output = '<speak>\n';
-
-  lines.forEach((line) => {
-    const parts = [
+const getParts = (line, targetFirst, mode) => {
+  if (mode === 'shadow') {
+    return [
       { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.shadow },
       { text: line.targetSecondHalf, mult: PAUSE_MULTIPLIERS.shadow },
       { text: line.target, mult: PAUSE_MULTIPLIERS.shadow },
     ];
+  }
+  if (mode === 'story') {
+    const words = countWords(line.target);
+    let pause = 1.0;
+    if (words < 8) pause = 0.7;
+    else if (words < 15) pause = 0.85;
+    return [{ text: line.target, pause: pause.toFixed(2) }];
+  }
 
+  // Interlinear
+  return targetFirst
+    ? [
+        { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.targetHalf },
+        { text: line.nativeFirstHalf, mult: PAUSE_MULTIPLIERS.native },
+        { text: line.targetSecondHalf, mult: PAUSE_MULTIPLIERS.targetHalf },
+        { text: line.nativeSecondHalf, mult: PAUSE_MULTIPLIERS.native },
+        { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat },
+        { text: line.native, mult: PAUSE_MULTIPLIERS.native },
+      ]
+    : [
+        { text: line.nativeFirstHalf, mult: PAUSE_MULTIPLIERS.native },
+        { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.targetHalf },
+        { text: line.nativeSecondHalf, mult: PAUSE_MULTIPLIERS.native },
+        { text: line.targetSecondHalf, mult: PAUSE_MULTIPLIERS.targetHalf },
+        { text: line.native, mult: PAUSE_MULTIPLIERS.native },
+        { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat },
+      ];
+};
+
+export const generateSsml = (lines, options = {}) => {
+  const { mode = 'interlinear', targetFirst = true } = options;
+  let output = '<speak>\n';
+
+  lines.forEach((line) => {
+    const parts = getParts(line, targetFirst, mode);
     parts.forEach((part) => {
       if (part.text) {
         const escaped = escapeSsml(part.text);
-        const pause = calculatePauseSeconds(part.text, part.mult);
+        const pause = part.pause || calculatePauseSeconds(part.text, part.mult);
         output += `  ${escaped} ${formatBreak(pause)}\n`;
       }
     });
@@ -89,21 +93,19 @@ export const generateShadowSsml = (lines) => {
   return output;
 };
 
-export const generateStoryOnlySsml = (lines) => {
-  let output = '<speak>\n';
+export const generateReadable = (lines, options = {}) => {
+  const { mode = 'interlinear', targetFirst = true } = options;
+  let output = '';
 
   lines.forEach((line) => {
-    if (line.target) {
-      const escaped = escapeSsml(line.target);
-      const words = countWords(line.target);
-      let pause = 1.0;
-      if (words < 8) pause = 0.7;
-      else if (words < 15) pause = 0.85;
-
-      output += `  ${escaped} ${formatBreak(pause.toFixed(2))}\n`;
-    }
+    const parts = getParts(line, targetFirst, mode);
+    parts.forEach((part) => {
+      if (part.text) {
+        output += `${part.text}\n`;
+      }
+    });
+    output += '\n';
   });
 
-  output += '</speak>';
-  return output;
+  return output.trim();
 };
