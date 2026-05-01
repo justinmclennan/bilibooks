@@ -86,47 +86,31 @@ DEFAULT STORY STRUCTURE:
 - Use: je, tu, il/elle, on, ils/elles, and vous when appropriate
 - Maintain tension, progression, and emotional clarity
 
-OUTPUT ORDER (STRICT):
-1. Focus verbs
-2. French story paragraph
-3. English meaning paragraph
-4. Interlinear practice
-5. Audio drill source lines
-6. French-only shadow version
+OUTPUT FORMAT (JSON ONLY):
+The response must be a valid JSON object with:
+- title: "Story Title"
+- lines: [
+    {
+      "native": "Full native sentence.",
+      "target": "Full target sentence.",
+      "nativeFirstHalf": "First half of native sentence.",
+      "nativeSecondHalf": "Second half of native sentence.",
+      "targetFirstHalf": "First half of target sentence.",
+      "targetSecondHalf": "Second half of target sentence."
+    }
+  ]
+- vocabularyList: [
+    { "target": "word", "native": "meaning" }
+  ]
 
-INTERLINEAR RULES:
-- English first, then French
-- Break sentences into 2 chunks
-- Each chunk should be about 4–7 words (adjust for level)
-- Keep English and French lines closely aligned
-- After the chunks, include the full sentence in English, then full sentence in French
-
-INTERLINEAR PATTERN:
-EN chunk 1
-FR chunk 1
-EN chunk 2
-FR chunk 2
-FULL EN
-FULL FR
-
-AUDIO DRILL SOURCE LINES:
-- Provide an array of objects for the audio generation.
-- Each object must have "text" (the string to speak) and "type".
-- Valid types: en_chunk, fr_chunk, en_full, fr_full, fr_shadow.
-- For Interlinear mode: follow the pattern en_chunk, fr_chunk, en_chunk, fr_chunk, en_full, fr_full.
-- For Shadow mode: provide only fr_shadow lines (sentence chunks then full sentence).
-- NO SSML TAGS. NO XML. NO MARKDOWN.
-
-SHADOW VERSION:
-- French only
-- Include chunk lines first, then full sentence
-- Pause = 0.3 × word count
-- Round to nearest 0.25 seconds
+RULES FOR LINES:
+- Break each sentence into two logical halves.
+- Avoid labels like "FULL FR:" or "TARGET:" in the text itself.
+- Ensure all target language characters (accents) are preserved correctly in UTF-8.
 
 DO NOT:
-- Do not explain anything
-- Do not add commentary
-- Do not change the structure
-- Do not summarize
-- Output ONLY the required sections
+- Do not explain anything.
+- Do not add commentary.
+- Do not add SSML tags.
+- Output ONLY the required JSON object.
 `;
