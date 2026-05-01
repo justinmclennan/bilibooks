@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { generateSsml, generateReadable } from '../utils/ssml';
+import { generateSsml, generateReadable, PAUSE_MULTIPLIERS, countWords } from '../utils/ssml';
 
 const Step3Results = ({ formData, storyData, resetApp }) => {
   const [activeTab, setActiveTab] = useState('summary');
@@ -16,6 +16,8 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
     return configs.reduce((acc, config) => {
       acc[config.id] = {
         label: config.label,
+        mode: config.mode,
+        targetFirst: config.targetFirst,
         ssml: generateSsml(storyData.lines, { mode: config.mode, targetFirst: config.targetFirst }),
         readable: generateReadable(storyData.lines, { mode: config.mode, targetFirst: config.targetFirst }),
       };
@@ -123,7 +125,10 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
                   label={data.label}
                   ssml={data.ssml}
                   readable={data.readable}
-                  targetLanguage={formData.targetLanguage}
+                  mode={data.mode}
+                  targetFirst={data.targetFirst}
+                  storyData={storyData}
+                  formData={formData}
                   onCopy={copyToClipboard}
                   onDownload={downloadFile}
                 />
@@ -166,7 +171,7 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
   );
 };
 
-const ScriptCard = ({ id, label, ssml, readable, targetLanguage, onCopy, onDownload }) => {
+const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, storyData, formData, onCopy, onDownload }) => {
   const [subTab, setSubTab] = useState('preview');
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [audioUrl, setAudioUrl] = useState(null);
@@ -176,10 +181,62 @@ const ScriptCard = ({ id, label, ssml, readable, targetLanguage, onCopy, onDownl
     setIsGeneratingAudio(true);
     setAudioError(null);
     try {
+      // Build segments for concatenation
+      const segments = [];
+
+      storyData.lines.forEach(line => {
+        if (mode === 'shadow') {
+          const parts = [
+            { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.shadow },
+            { text: line.targetSecondHalf, mult: PAUSE_MULTIPLIERS.shadow },
+            { text: line.target, mult: PAUSE_MULTIPLIERS.shadow },
+          ];
+          parts.forEach(p => {
+            segments.push({ type: 'speech', lang: 'target', text: p.text });
+            segments.push({ type: 'pause', duration: countWords(p.text) * p.mult });
+          });
+        } else if (mode === 'story') {
+          const words = countWords(line.target);
+          let pause = 1.0;
+          if (words < 8) pause = 0.7;
+          else if (words < 15) pause = 0.85;
+          segments.push({ type: 'speech', lang: 'target', text: line.target });
+          segments.push({ type: 'pause', duration: pause });
+        } else {
+          // Interlinear
+          const parts = targetFirst
+            ? [
+                { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.targetHalf, lang: 'target' },
+                { text: line.nativeFirstHalf, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
+                { text: line.targetSecondHalf, mult: PAUSE_MULTIPLIERS.targetHalf, lang: 'target' },
+                { text: line.nativeSecondHalf, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
+                { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat, lang: 'target' },
+                { text: line.native, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
+              ]
+            : [
+                { text: line.nativeFirstHalf, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
+                { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.targetHalf, lang: 'target' },
+                { text: line.nativeSecondHalf, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
+                { text: line.targetSecondHalf, mult: PAUSE_MULTIPLIERS.targetHalf, lang: 'target' },
+                { text: line.native, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
+                { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat, lang: 'target' },
+              ];
+
+          parts.forEach(p => {
+            segments.push({ type: 'speech', lang: p.lang, text: p.text });
+            segments.push({ type: 'pause', duration: countWords(p.text) * p.mult });
+          });
+        }
+      });
+
       const response = await fetch('/api/generate-audio', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ssml, targetLanguage }),
+        body: JSON.stringify({
+          segments,
+          targetLanguage: formData.targetLanguage,
+          baseLanguage: formData.baseLanguage
+        }),
       });
 
       const data = await response.json();
@@ -188,14 +245,13 @@ const ScriptCard = ({ id, label, ssml, readable, targetLanguage, onCopy, onDownl
         throw new Error(data.error || 'Audio generation failed');
       }
 
-      // Convert base64 to blob
       const byteCharacters = atob(data.audioContent);
       const byteNumbers = new Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
         byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
       const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'audio/mpeg' });
+      const blob = new Blob([byteArray], { type: 'audio/wav' });
 
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
@@ -211,16 +267,20 @@ const ScriptCard = ({ id, label, ssml, readable, targetLanguage, onCopy, onDownl
     if (!audioUrl) return;
     const a = document.createElement('a');
     a.href = audioUrl;
-    a.download = `${id}.mp3`;
+    a.download = `${id}.wav`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
   };
 
+  const isBilingual = mode === 'interlinear';
+
   return (
     <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden">
       <div className="bg-surface-container-low px-lg py-3 flex justify-between items-center border-b border-outline-variant">
-        <h4 className="font-headline-sm text-on-surface">{label}</h4>
+        <h4 className="font-headline-sm text-on-surface">
+          {label} {isBilingual ? '(Dual Voice)' : '(Target Only)'}
+        </h4>
         <div className="flex bg-surface-container rounded-lg p-1">
           <button
             onClick={() => setSubTab('preview')}
@@ -271,14 +331,14 @@ const ScriptCard = ({ id, label, ssml, readable, targetLanguage, onCopy, onDownl
               className="flex items-center gap-2 px-6 py-2.5 bg-secondary text-on-secondary rounded-lg font-headline-sm hover:bg-secondary-container transition-all active:scale-[0.98]"
             >
               <span className="material-symbols-outlined">headphones</span>
-              Generate MP3
+              Generate {isBilingual ? 'Bilingual ' : ''}Audio
             </button>
           )}
 
           {isGeneratingAudio && (
             <div className="flex items-center gap-3 text-secondary">
               <span className="material-symbols-outlined animate-spin">progress_activity</span>
-              <span className="font-headline-sm">Generating audio...</span>
+              <span className="font-headline-sm">Generating {isBilingual ? 'Dual-Voice ' : ''}audio...</span>
             </div>
           )}
 
@@ -290,7 +350,7 @@ const ScriptCard = ({ id, label, ssml, readable, targetLanguage, onCopy, onDownl
                 className="flex items-center gap-2 px-4 py-2 border-2 border-secondary text-secondary rounded-lg font-label-caps hover:bg-secondary/5 transition-all"
               >
                 <span className="material-symbols-outlined text-sm">download</span>
-                Download MP3
+                Download WAV
               </button>
             </div>
           )}

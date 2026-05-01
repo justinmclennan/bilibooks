@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import textToSpeech from '@google-cloud/text-to-speech';
 import { STORY_SYSTEM_PROMPT } from '../src/prompts/storySpec.js';
+import { concatenateWavs, createSilenceBuffer } from './audioUtils.js';
 
 dotenv.config();
 
@@ -17,8 +18,6 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Google Cloud Text-to-Speech client
-// Note: Google Cloud automatically looks for credentials at the path specified in GOOGLE_APPLICATION_CREDENTIALS environment variable
 const ttsClient = new textToSpeech.TextToSpeechClient();
 
 const buildUserPrompt = ({ chapter, genre, level, focusVerbs, theme, storyLength, targetLanguage, baseLanguage }) => {
@@ -86,35 +85,48 @@ app.post('/api/generate-story', async (req, res) => {
 });
 
 app.post('/api/generate-audio', async (req, res) => {
-  const { ssml, targetLanguage } = req.body;
+  const { segments, targetLanguage, baseLanguage } = req.body;
 
-  if (!ssml) {
-    return res.status(400).json({ error: 'SSML content is required' });
+  if (!segments || !Array.isArray(segments)) {
+    return res.status(400).json({ error: 'Segments are required' });
   }
 
-  // Voice mapping based on requirements
   const voiceMap = {
     'French': { languageCode: 'fr-FR', name: 'fr-FR-Neural2-A' },
     'Spanish': { languageCode: 'es-ES', name: 'es-ES-Neural2-A' },
     'English': { languageCode: 'en-US', name: 'en-US-Neural2-D' },
+    'German': { languageCode: 'de-DE', name: 'de-DE-Neural2-F' },
   };
 
-  const selectedVoice = voiceMap[targetLanguage] || voiceMap['English'];
-
-  const request = {
-    input: { ssml: ssml },
-    voice: selectedVoice,
-    audioConfig: { audioEncoding: 'MP3' },
-  };
+  const getVoice = (lang) => voiceMap[lang] || voiceMap['English'];
 
   try {
-    const [response] = await ttsClient.synthesizeSpeech(request);
-    // Convert audio content to base64
-    const audioContent = response.audioContent.toString('base64');
-    res.json({ audioContent });
+    const audioBuffers = [];
+
+    for (const segment of segments) {
+      if (segment.type === 'pause') {
+        const silence = createSilenceBuffer(segment.duration);
+        audioBuffers.push({ buffer: silence, isSilence: true });
+        continue;
+      }
+
+      const voice = segment.lang === 'target' ? getVoice(targetLanguage) : getVoice(baseLanguage);
+
+      const request = {
+        input: { text: segment.text },
+        voice: voice,
+        audioConfig: { audioEncoding: 'LINEAR16', sampleRateHertz: 24000 },
+      };
+
+      const [response] = await ttsClient.synthesizeSpeech(request);
+      audioBuffers.push({ buffer: Buffer.from(response.audioContent), isSilence: false });
+    }
+
+    const finalWav = concatenateWavs(audioBuffers);
+    res.json({ audioContent: finalWav.toString('base64') });
   } catch (error) {
     console.error('Error generating audio:', error);
-    res.status(500).json({ error: 'Audio generation failed. Please check Google Cloud credentials and try again.' });
+    res.status(500).json({ error: 'Audio generation failed. Please check Google Cloud credentials.' });
   }
 });
 
