@@ -1,14 +1,14 @@
 # LinguStory
 
-LinguStory is a React SPA that uses AI to generate custom language learning stories and audio drills.
+LinguStory is a React SPA that uses AI to generate custom language learning stories and audio.
 
 ## Features
 
 - Custom story generation based on target language, level, and personal ideas.
 - Structured learning materials: interlinear scripts, shadow scripts, and vocabulary lists.
+- **Google Cloud Text-to-Speech Integration**: Generate high-quality MP3 audio from SSML scripts.
 - Interactive UI with loading and error states.
-- Secure backend for OpenAI and Amazon Polly integration.
-- **Dynamic SSML Generation**: The backend automatically builds valid SSML for Amazon Polly to ensure reliable audio drills with proper pauses.
+- Secure backend for OpenAI and Google Cloud integration.
 
 ## Setup
 
@@ -17,7 +17,8 @@ LinguStory is a React SPA that uses AI to generate custom language learning stor
 - Node.js (v20 or higher recommended)
 - npm or yarn
 - OpenAI API Key
-- Amazon Web Services (AWS) Account with Polly permissions
+- Google Cloud Project with Text-to-Speech API enabled
+- Google Cloud Service Account credentials (JSON file)
 
 ### Installation
 
@@ -30,13 +31,18 @@ LinguStory is a React SPA that uses AI to generate custom language learning stor
     ```bash
     cp .env.example .env
     ```
-4.  Add your API keys and AWS credentials to the `.env` file:
+4.  Add your API keys and credentials path to the `.env` file:
     ```
-    OPENAI_API_KEY=your_openai_api_key_here
-    AWS_ACCESS_KEY_ID=your_aws_access_key_id_here
-    AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key_here
-    AWS_REGION=us-east-1
+    OPENAI_API_KEY=your_actual_api_key_here
+    GOOGLE_APPLICATION_CREDENTIALS=./path-to-your-service-account.json
     ```
+
+### Google Cloud Setup
+
+1.  Enable the **Cloud Text-to-Speech API** in your Google Cloud Console.
+2.  Create a **Service Account**.
+3.  Generate and download a **JSON key** for the service account.
+4.  Place the JSON file in your project directory (ensure it's ignored by git) and update `GOOGLE_APPLICATION_CREDENTIALS` in your `.env`.
 
 ### Running the Application
 
@@ -58,6 +64,6 @@ To run the application locally, you need to start both the backend server and th
 ## Tech Stack
 
 - **Frontend:** React, Vite, Tailwind CSS, Material Symbols
-- **Backend:** Node.js, Express, OpenAI SDK, AWS SDK (@aws-sdk/client-polly)
+- **Backend:** Node.js, Express, OpenAI SDK, Google Cloud Text-to-Speech SDK
 - **AI:** OpenAI GPT-4o
-- **TTS:** Amazon Polly (Neural Engine)
+- **TTS:** Google Cloud Text-to-Speech (Neural2 voices)

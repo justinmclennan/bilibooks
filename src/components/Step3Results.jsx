@@ -123,6 +123,7 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
                   label={data.label}
                   ssml={data.ssml}
                   readable={data.readable}
+                  targetLanguage={formData.targetLanguage}
                   onCopy={copyToClipboard}
                   onDownload={downloadFile}
                 />
@@ -165,8 +166,56 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
   );
 };
 
-const ScriptCard = ({ id, label, ssml, readable, onCopy, onDownload }) => {
+const ScriptCard = ({ id, label, ssml, readable, targetLanguage, onCopy, onDownload }) => {
   const [subTab, setSubTab] = useState('preview');
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+  const [audioUrl, setAudioUrl] = useState(null);
+  const [audioError, setAudioError] = useState(null);
+
+  const generateAudio = async () => {
+    setIsGeneratingAudio(true);
+    setAudioError(null);
+    try {
+      const response = await fetch('/api/generate-audio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ssml, targetLanguage }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Audio generation failed');
+      }
+
+      // Convert base64 to blob
+      const byteCharacters = atob(data.audioContent);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'audio/mpeg' });
+
+      const url = URL.createObjectURL(blob);
+      setAudioUrl(url);
+    } catch (err) {
+      console.error(err);
+      setAudioError(err.message);
+    } finally {
+      setIsGeneratingAudio(false);
+    }
+  };
+
+  const downloadAudio = () => {
+    if (!audioUrl) return;
+    const a = document.createElement('a');
+    a.href = audioUrl;
+    a.download = `${id}.mp3`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
 
   return (
     <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden">
@@ -189,7 +238,7 @@ const ScriptCard = ({ id, label, ssml, readable, onCopy, onDownload }) => {
       </div>
 
       <div className="p-lg">
-        <div className="relative">
+        <div className="relative mb-lg">
           <pre className="bg-surface-container-low p-md rounded-lg overflow-x-auto text-sm font-mono text-on-surface-variant h-48 no-scrollbar border border-outline-variant">
             {subTab === 'preview' ? readable : ssml}
           </pre>
@@ -214,6 +263,45 @@ const ScriptCard = ({ id, label, ssml, readable, onCopy, onDownload }) => {
             </button>
           </div>
         </div>
+
+        <div className="pt-lg border-t border-outline-variant flex flex-col sm:flex-row items-center gap-lg">
+          {!audioUrl && !isGeneratingAudio && (
+            <button
+              onClick={generateAudio}
+              className="flex items-center gap-2 px-6 py-2.5 bg-secondary text-on-secondary rounded-lg font-headline-sm hover:bg-secondary-container transition-all active:scale-[0.98]"
+            >
+              <span className="material-symbols-outlined">headphones</span>
+              Generate MP3
+            </button>
+          )}
+
+          {isGeneratingAudio && (
+            <div className="flex items-center gap-3 text-secondary">
+              <span className="material-symbols-outlined animate-spin">progress_activity</span>
+              <span className="font-headline-sm">Generating audio...</span>
+            </div>
+          )}
+
+          {audioUrl && (
+            <div className="flex flex-col sm:flex-row items-center gap-md w-full">
+              <audio controls src={audioUrl} className="h-10 flex-grow" />
+              <button
+                onClick={downloadAudio}
+                className="flex items-center gap-2 px-4 py-2 border-2 border-secondary text-secondary rounded-lg font-label-caps hover:bg-secondary/5 transition-all"
+              >
+                <span className="material-symbols-outlined text-sm">download</span>
+                Download MP3
+              </button>
+            </div>
+          )}
+        </div>
+
+        {audioError && (
+          <div className="mt-md p-md bg-error-container text-on-error-container rounded-lg border border-error/20 flex items-center gap-md animate-in slide-in-from-top-2">
+            <span className="material-symbols-outlined text-error">error</span>
+            <p className="font-body-sm">{audioError}</p>
+          </div>
+        )}
       </div>
     </div>
   );
