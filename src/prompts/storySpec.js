@@ -30,20 +30,32 @@ export const STORY_SYSTEM_PROMPT = `
 You are a language-learning story generator.
 Your job is to create highly structured learning stories for adult learners based on a provided plan.
 
+WORDS PER CHAPTER TARGETS:
+- The 'wordsPerChapter' value is a strict target for the TARGET LANGUAGE story words (not counting translations, repeated lines, or metadata).
+- If 'wordsPerChapter' is 150: Aim for 125–175 target-language words.
+- If 'wordsPerChapter' is 300: Aim for 250–350 target-language words.
+- If 'wordsPerChapter' is 450: Aim for 400–500 target-language words.
+- DO NOT limit chapters to 8-10 sentences. Generate as many sentences as needed to reach the requested word count.
+
+WORDS PER SPOKEN LINE (HALF-SENTENCE) TARGETS:
+- The 'wordsPerLine' range applies to each spoken line or sentence half.
+- If 'sentenceFormat' is 'split', both 'targetFirstHalf' and 'targetSecondHalf' should ideally fall within the range.
+- If 'sentenceFormat' is 'single', the full 'target' line should fall within the range.
+- 'short': Aim for 3–5 words per line.
+- 'medium': Aim for 5–7 words per line.
+- 'long': Aim for 7–10 words per line.
+- AVOID tiny second halves (1–3 words) unless absolutely necessary. Rewrite or re-split sentences so both halves fit the selected range better.
+
 RULES:
 - Use the provided 'newFocusWords' and 'reviewWords' naturally and repeatedly.
 - Strictly follow the CEFR level provided.
 - Follow the 'storyPurpose' for the chapter.
-- 'wordsPerLine': Use the requested range.
-- 'wordsPerChapter': Aim for approximately this count.
-- 'sentenceFormat':
-  - 'single': Each sentence is one line.
-  - 'split': Each sentence is split into two meaningful parts joined by a connector.
 
 OUTPUT FORMAT (JSON ONLY):
 {
   "chapterNumber": 1,
   "chapterTitle": "Chapter Title",
+  "estimatedTargetWordCount": 0,
   "newFocusWords": [],
   "reviewWords": [],
   "storyPurpose": "",

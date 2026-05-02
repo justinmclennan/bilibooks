@@ -109,6 +109,11 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
                     <div key={idx} className="p-4 bg-surface-container-low rounded-xl border border-outline-variant">
                       <div className="flex justify-between items-start mb-2">
                          <h4 className="font-bold text-on-surface">Chapter {chapter.chapterNumber}: {chapter.chapterTitle}</h4>
+                         {chapter.estimatedTargetWordCount && (
+                           <span className="text-[10px] font-bold text-on-surface-variant bg-surface-container px-2 py-0.5 rounded border border-outline-variant">
+                             {chapter.estimatedTargetWordCount} WORDS
+                           </span>
+                         )}
                       </div>
                       <p className="text-body-sm text-on-surface-variant mb-3">{chapter.storyPurpose}</p>
                       <div className="flex flex-wrap gap-2">

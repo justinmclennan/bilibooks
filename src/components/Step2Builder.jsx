@@ -3,7 +3,7 @@ const Step2Builder = ({ formData, updateFormData, nextStep, prevStep, isGenerati
   const wordsPerLineOptions = [
     { id: 'short', label: 'Short', sub: '3–5 words' },
     { id: 'medium', label: 'Medium', sub: '5–7 words' },
-    { id: 'long', label: 'Long', sub: '7+ words' },
+    { id: 'long', label: 'Long', sub: '7–10 words' },
   ];
 
   const sentenceFormats = [
@@ -56,7 +56,7 @@ const Step2Builder = ({ formData, updateFormData, nextStep, prevStep, isGenerati
               onChange={(e) => {
                 const val = e.target.value;
                 if (val === 'custom') {
-                   // Keep current or default
+                   updateFormData({ chapterCount: 6 });
                 } else {
                    updateFormData({ chapterCount: parseInt(val) });
                 }
@@ -86,12 +86,17 @@ const Step2Builder = ({ formData, updateFormData, nextStep, prevStep, isGenerati
           </div>
 
           <div>
-            <label className="block font-headline-sm text-headline-sm text-on-surface mb-2">Words Per Chapter</label>
+            <label className="block font-headline-sm text-headline-sm text-on-surface mb-1">Words Per Chapter</label>
+            <p className="text-[11px] text-on-surface-variant mb-2">Controls the approximate length of each target-language chapter, not counting translations or repeated lines.</p>
             <select
               value={formData.wordsPerChapter === 150 || formData.wordsPerChapter === 300 || formData.wordsPerChapter === 450 ? formData.wordsPerChapter : 'custom'}
               onChange={(e) => {
                  const val = e.target.value;
-                 if (val !== 'custom') updateFormData({ wordsPerChapter: parseInt(val) });
+                 if (val === 'custom') {
+                   updateFormData({ wordsPerChapter: 200 });
+                 } else {
+                   updateFormData({ wordsPerChapter: parseInt(val) });
+                 }
               }}
               disabled={isGenerating}
               className="w-full rounded-xl border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary bg-surface-container-low font-body-md p-3 text-on-surface transition-colors disabled:opacity-50"
@@ -116,7 +121,8 @@ const Step2Builder = ({ formData, updateFormData, nextStep, prevStep, isGenerati
         <div className="grid grid-cols-1 md:grid-cols-2 gap-xl">
            {/* Words Per Line */}
           <div>
-            <label className="block font-headline-sm text-headline-sm text-on-surface mb-4">Words Per Line</label>
+            <label className="block font-headline-sm text-headline-sm text-on-surface mb-1">Words Per Spoken Line</label>
+            <p className="text-[11px] text-on-surface-variant mb-2">Controls the length of each audio chunk or sentence half.</p>
             <div className="grid grid-cols-3 gap-2">
               {wordsPerLineOptions.map((opt) => {
                 const isActive = formData.wordsPerLine === opt.id;

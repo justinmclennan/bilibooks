@@ -20,6 +20,51 @@ const openai = new OpenAI({
 
 const ttsClient = new textToSpeech.TextToSpeechClient();
 
+function countTargetWords(chapterData) {
+  return chapterData.lines.reduce((acc, line) => {
+    return acc + line.target.split(/\s+/).filter(w => w.length > 0).length;
+  }, 0);
+}
+
+function validateChapter(chapterData, wordsPerChapter, wordsPerLine) {
+  const actualWordCount = countTargetWords(chapterData);
+  let minWords;
+
+  if (wordsPerChapter === 150) { minWords = 125; }
+  else if (wordsPerChapter === 300) { minWords = 250; }
+  else if (wordsPerChapter === 450) { minWords = 400; }
+  else { minWords = wordsPerChapter * 0.8; }
+
+  const tooShort = actualWordCount < minWords;
+
+  let lineRange = { min: 3, max: 10 };
+  if (wordsPerLine === 'short') { lineRange = { min: 3, max: 5 }; }
+  else if (wordsPerLine === 'medium') { lineRange = { min: 5, max: 7 }; }
+  else if (wordsPerLine === 'long') { lineRange = { min: 7, max: 10 }; }
+
+  let lineViolations = 0;
+  chapterData.lines.forEach(line => {
+    if (line.targetFirstHalf) {
+      const c1 = line.targetFirstHalf.split(/\s+/).filter(w => w.length > 0).length;
+      const c2 = line.targetSecondHalf.split(/\s+/).filter(w => w.length > 0).length;
+      if (c1 < lineRange.min || c2 < lineRange.min) lineViolations++;
+    } else {
+      const c = line.target.split(/\s+/).filter(w => w.length > 0).length;
+      if (c < lineRange.min) lineViolations++;
+    }
+  });
+
+  const tooManyViolations = lineViolations > (chapterData.lines.length * 0.3);
+
+  return {
+    valid: !tooShort && !tooManyViolations,
+    tooShort,
+    tooManyViolations,
+    actualWordCount,
+    lineViolations
+  };
+}
+
 app.post('/api/generate-story', async (req, res) => {
   const {
     baseLanguage,
@@ -73,16 +118,43 @@ Sentence Format: ${sentenceFormat}
 Chapter Plan: ${JSON.stringify(chapterPlan)}
       `.trim();
 
-      const chapterResponse = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
+      const getChapter = async (prompt, retryMessage = null) => {
+        const messages = [
           { role: "system", content: STORY_SYSTEM_PROMPT },
-          { role: "user", content: storyUserPrompt }
-        ],
-        response_format: { type: "json_object" },
-      });
+          { role: "user", content: prompt }
+        ];
+        if (retryMessage) {
+          messages.push({ role: "assistant", content: "Previous attempt failed validation." });
+          messages.push({ role: "user", content: retryMessage });
+        }
 
-      const chapterData = JSON.parse(chapterResponse.choices[0].message.content);
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: messages,
+          response_format: { type: "json_object" },
+        });
+        return JSON.parse(response.choices[0].message.content);
+      };
+
+      let chapterData = await getChapter(storyUserPrompt);
+      let validation = validateChapter(chapterData, wordsPerChapter, wordsPerLine);
+
+      if (!validation.valid) {
+        console.log(`Validation failed for Chapter ${chapterPlan.chapterNumber}:`, validation);
+        let correction = "";
+        if (validation.tooShort) {
+          correction += `Chapter ${chapterPlan.chapterNumber} is too short. It has only ${validation.actualWordCount} target-language words, but the requested target is ${wordsPerChapter}. Regenerate with approximately ${wordsPerChapter} target-language words. `;
+        }
+        if (validation.tooManyViolations) {
+          correction += `Too many lines (or half-lines) violate the '${wordsPerLine}' words-per-spoken-line requirement. Please ensure each line/half-line has the appropriate length. `;
+        }
+
+        chapterData = await getChapter(storyUserPrompt, correction.trim());
+        validation = validateChapter(chapterData, wordsPerChapter, wordsPerLine);
+        console.log(`Retry validation result:`, validation.valid);
+      }
+
+      chapterData.estimatedTargetWordCount = validation.actualWordCount;
       chapters.push(chapterData);
       if (chapterData.vocabularyList) {
         combinedVocabList = [...combinedVocabList, ...chapterData.vocabularyList];
