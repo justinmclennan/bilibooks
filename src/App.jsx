@@ -17,8 +17,9 @@ function App() {
     level: 'A1',
     chapterCount: 1,
     wordsPerLine: 'medium',
-    wordsPerChapter: 100,
+    wordsPerChapter: 150,
     sentenceFormat: 'single',
+    planningMode: 'single',
     storyIdea: '',
     vocabulary: '',
   });
@@ -39,8 +40,9 @@ function App() {
       level: 'A1',
       chapterCount: 1,
       wordsPerLine: 'medium',
-      wordsPerChapter: 100,
+      wordsPerChapter: 150,
       sentenceFormat: 'single',
+      planningMode: 'single',
       storyIdea: '',
       vocabulary: '',
     });

@@ -70,21 +70,58 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
 
         <div className="min-h-[400px]">
           {activeTab === 'summary' && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-md animate-in fade-in duration-300">
-              <div className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm">
-                <span className="material-symbols-outlined text-primary mb-sm">translate</span>
-                <p className="font-label-caps text-label-caps text-on-surface-variant uppercase">LANGUAGES</p>
-                <p className="font-body-lg text-body-lg font-bold text-on-surface">{formData.baseLanguage} → {formData.targetLanguage}</p>
+            <div className="space-y-lg animate-in fade-in duration-300">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-md">
+                <div className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm">
+                  <span className="material-symbols-outlined text-primary mb-sm">translate</span>
+                  <p className="font-label-caps text-label-caps text-on-surface-variant uppercase">LANGUAGES</p>
+                  <p className="font-body-lg text-body-lg font-bold text-on-surface">{formData.baseLanguage} → {formData.targetLanguage}</p>
+                </div>
+                <div className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm">
+                  <span className="material-symbols-outlined text-primary mb-sm">signal_cellular_alt</span>
+                  <p className="font-label-caps text-label-caps text-on-surface-variant uppercase">LEVEL</p>
+                  <p className="font-body-lg text-body-lg font-bold text-on-surface">{formData.level}</p>
+                </div>
+                <div className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm">
+                  <span className="material-symbols-outlined text-primary mb-sm">auto_stories</span>
+                  <p className="font-label-caps text-label-caps text-on-surface-variant uppercase">CHAPTERS</p>
+                  <p className="font-body-lg text-body-lg font-bold text-on-surface">{chapters.length} Chapters</p>
+                </div>
               </div>
+
+              {storyData?.storyArc && (
+                <div className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm">
+                  <h3 className="font-headline-sm text-headline-sm mb-2 flex items-center gap-2 text-primary">
+                    <span className="material-symbols-outlined">auto_awesome</span>
+                    Story Arc
+                  </h3>
+                  <p className="text-on-surface-variant leading-relaxed italic">{storyData.storyArc}</p>
+                </div>
+              )}
+
               <div className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm">
-                <span className="material-symbols-outlined text-primary mb-sm">signal_cellular_alt</span>
-                <p className="font-label-caps text-label-caps text-on-surface-variant uppercase">LEVEL</p>
-                <p className="font-body-lg text-body-lg font-bold text-on-surface">{formData.level}</p>
-              </div>
-              <div className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm">
-                <span className="material-symbols-outlined text-primary mb-sm">auto_stories</span>
-                <p className="font-label-caps text-label-caps text-on-surface-variant uppercase">CHAPTERS</p>
-                <p className="font-body-lg text-body-lg font-bold text-on-surface">{chapters.length} Chapters</p>
+                <h3 className="font-headline-sm text-headline-sm mb-lg flex items-center gap-2 text-primary">
+                   <span className="material-symbols-outlined">assignment</span>
+                   Curriculum Plan
+                </h3>
+                <div className="space-y-4">
+                  {chapters.map((chapter, idx) => (
+                    <div key={idx} className="p-4 bg-surface-container-low rounded-xl border border-outline-variant">
+                      <div className="flex justify-between items-start mb-2">
+                         <h4 className="font-bold text-on-surface">Chapter {chapter.chapterNumber}: {chapter.chapterTitle}</h4>
+                      </div>
+                      <p className="text-body-sm text-on-surface-variant mb-3">{chapter.storyPurpose}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {chapter.newFocusWords?.map((w, i) => (
+                          <span key={i} className="px-2 py-0.5 bg-primary-container text-on-primary-container text-[10px] font-bold rounded uppercase">New: {w}</span>
+                        ))}
+                        {chapter.reviewWords?.map((w, i) => (
+                          <span key={i} className="px-2 py-0.5 bg-secondary-container text-on-secondary-container text-[10px] font-bold rounded uppercase">Review: {w}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}

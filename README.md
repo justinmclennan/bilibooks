@@ -1,69 +1,51 @@
-# LinguStory
+# LinguStory Local Prototype
 
-LinguStory is a React SPA that uses AI to generate custom language learning stories and audio.
+A language-learning story generator that creates structured bilingual stories and audio using OpenAI GPT-4o and Google Cloud Text-to-Speech.
 
 ## Features
+- **Multi-Chapter Planning:** Automatically divides your vocabulary across multiple chapters with a coherent story arc.
+- **Pedagogical Controls:** Customize CEFR levels, chapter word counts, words per line, and sentence formatting (single vs. split).
+- **Dual-Voice Audio:** Generates concatenated WAV audio with different voices for target and native languages.
+- **Interlinear Scripts:** Multiple script views (Interlinear, Shadow, Story Only) with SSML and readable text exports.
 
-- Custom story generation based on target language, level, and personal ideas.
-- Structured learning materials: interlinear scripts, shadow scripts, and vocabulary lists.
-- **Google Cloud Text-to-Speech Integration**: Generate high-quality MP3 audio from SSML scripts.
-- Interactive UI with loading and error states.
-- Secure backend for OpenAI and Google Cloud integration.
+## Prerequisites
+- [Node.js](https://nodejs.org/) (v18+)
+- OpenAI API Key
+- Google Cloud Service Account with Text-to-Speech API enabled
 
 ## Setup
 
-### Prerequisites
+1. **Install Dependencies:**
+   ```bash
+   npm install
+   ```
 
-- Node.js (v20 or higher recommended)
-- npm or yarn
-- OpenAI API Key
-- Google Cloud Project with Text-to-Speech API enabled
-- Google Cloud Service Account credentials (JSON file)
+2. **Configure Environment:**
+   Create a `.env` file in the root directory:
+   ```env
+   OPENAI_API_KEY=your_openai_key_here
+   GOOGLE_APPLICATION_CREDENTIALS=path/to/your/google-credentials.json
+   ```
 
-### Installation
+## Running the App
 
-1.  Clone the repository.
-2.  Install dependencies:
-    ```bash
-    npm install
-    ```
-3.  Create a `.env` file in the root directory based on `.env.example`:
-    ```bash
-    cp .env.example .env
-    ```
-4.  Add your API keys and credentials path to the `.env` file:
-    ```
-    OPENAI_API_KEY=your_actual_api_key_here
-    GOOGLE_APPLICATION_CREDENTIALS=./path-to-your-service-account.json
-    ```
+Start both the Express backend and Vite frontend with a single command:
+```bash
+npm run dev:all
+```
+*On Windows:* `npm.cmd run dev:all`
 
-### Google Cloud Setup
+Then open [http://localhost:5173/](http://localhost:5173/) in your browser.
 
-1.  Enable the **Cloud Text-to-Speech API** in your Google Cloud Console.
-2.  Create a **Service Account**.
-3.  Generate and download a **JSON key** for the service account.
-4.  Place the JSON file in your project directory (ensure it's ignored by git) and update `GOOGLE_APPLICATION_CREDENTIALS` in your `.env`.
+## Development Workflow
+- **Frontend:** `npm run dev` (Port 5173)
+- **Backend:** `npm run server` (Port 3001)
+- **Build:** `npm run build`
+- **Lint:** `npm run lint`
 
-### Running the Application
-
-To run the application locally, you need to start both the backend server and the frontend development server.
-
-1.  **Start the Backend Server:**
-    ```bash
-    node server/index.js
-    ```
-    (The server runs on http://localhost:3001 by default)
-
-2.  **Start the Frontend:**
-    In a new terminal window:
-    ```bash
-    npm run dev
-    ```
-    (Vite will serve the app, typically on http://localhost:5173, and proxy API requests to the backend)
-
-## Tech Stack
-
-- **Frontend:** React, Vite, Tailwind CSS, Material Symbols
-- **Backend:** Node.js, Express, OpenAI SDK, Google Cloud Text-to-Speech SDK
-- **AI:** OpenAI GPT-4o
-- **TTS:** Google Cloud Text-to-Speech (Neural2 voices)
+## Architecture
+- **Frontend:** React + Vite + Tailwind CSS
+- **Backend:** Node.js + Express
+- **AI:** OpenAI GPT-4o (Structured Output)
+- **Audio:** Google Cloud TTS (Dual-voice concatenation)
+- **Utilities:** Custom SSML/Timing engine in `src/utils/ssml.js`

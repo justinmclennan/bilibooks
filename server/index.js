@@ -3,7 +3,7 @@ import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import textToSpeech from '@google-cloud/text-to-speech';
-import { STORY_SYSTEM_PROMPT } from '../src/prompts/storySpec.js';
+import { STORY_SYSTEM_PROMPT, PLANNING_SYSTEM_PROMPT } from '../src/prompts/storySpec.js';
 import { concatenateWavs, createSilenceBuffer } from './audioUtils.js';
 
 dotenv.config();
@@ -19,30 +19,6 @@ const openai = new OpenAI({
 });
 
 const ttsClient = new textToSpeech.TextToSpeechClient();
-
-const buildUserPrompt = ({
-  baseLanguage,
-  targetLanguage,
-  level,
-  chapterCount,
-  wordsPerLine,
-  wordsPerChapter,
-  sentenceFormat,
-  storyIdea,
-  vocabulary
-}) => {
-  return `
-Target Language: ${targetLanguage}
-Base Language (Native): ${baseLanguage}
-Level: ${level}
-Chapter Count: ${chapterCount}
-Words Per Chapter: ${wordsPerChapter}
-Words Per Line: ${wordsPerLine}
-Sentence Format: ${sentenceFormat}
-Vocabulary/Focus: ${vocabulary}
-Story Idea/Theme: ${storyIdea}
-  `.trim();
-};
 
 app.post('/api/generate-story', async (req, res) => {
   const {
@@ -61,36 +37,69 @@ app.post('/api/generate-story', async (req, res) => {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  const userPrompt = buildUserPrompt({
-    baseLanguage,
-    targetLanguage,
-    level,
-    chapterCount,
-    wordsPerLine,
-    wordsPerChapter,
-    sentenceFormat,
-    storyIdea,
-    vocabulary,
-  });
-
   try {
-    const response = await openai.chat.completions.create({
+    // Step 1: Planning
+    const planningUserPrompt = `
+Target Language: ${targetLanguage}
+Base Language: ${baseLanguage}
+Chapters: ${chapterCount}
+Vocabulary: ${vocabulary}
+Idea: ${storyIdea}
+    `.trim();
+
+    const planningResponse = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
-        {
-          role: "system",
-          content: STORY_SYSTEM_PROMPT
-        },
-        {
-          role: "user",
-          content: userPrompt
-        }
+        { role: "system", content: PLANNING_SYSTEM_PROMPT },
+        { role: "user", content: planningUserPrompt }
       ],
       response_format: { type: "json_object" },
     });
 
-    const content = JSON.parse(response.choices[0].message.content);
-    res.json(content);
+    const plan = JSON.parse(planningResponse.choices[0].message.content);
+
+    // Step 2: Story Generation per Chapter
+    const chapters = [];
+    let combinedVocabList = [];
+
+    for (const chapterPlan of plan.chapters) {
+      const storyUserPrompt = `
+Target Language: ${targetLanguage}
+Base Language: ${baseLanguage}
+Level: ${level}
+Words Per Line: ${wordsPerLine}
+Words Per Chapter: ${wordsPerChapter}
+Sentence Format: ${sentenceFormat}
+Chapter Plan: ${JSON.stringify(chapterPlan)}
+      `.trim();
+
+      const chapterResponse = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: STORY_SYSTEM_PROMPT },
+          { role: "user", content: storyUserPrompt }
+        ],
+        response_format: { type: "json_object" },
+      });
+
+      const chapterData = JSON.parse(chapterResponse.choices[0].message.content);
+      chapters.push(chapterData);
+      if (chapterData.vocabularyList) {
+        combinedVocabList = [...combinedVocabList, ...chapterData.vocabularyList];
+      }
+    }
+
+    // Deduplicate vocab
+    const uniqueVocab = Array.from(new Set(combinedVocabList.map(v => v.target)))
+      .map(target => combinedVocabList.find(v => v.target === target));
+
+    res.json({
+      title: plan.title,
+      storyArc: plan.storyArc,
+      chapters: chapters,
+      vocabularyList: uniqueVocab
+    });
+
   } catch (error) {
     console.error('Error generating story:', error);
     res.status(500).json({ error: 'Failed to generate story' });
