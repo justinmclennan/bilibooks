@@ -38,72 +38,128 @@ export const formatBreak = (seconds) => {
   return `<break time="${seconds}s"/>`;
 };
 
-const getParts = (line, targetFirst, mode) => {
+/**
+ * Returns an array of parts for a given line based on the mode.
+ * Each part contains: { text, mult, pause, lang }
+ */
+export const getLineParts = (line, options = {}) => {
+  const { mode = 'interlinear', targetFirst = true } = options;
+  const isSplit = !!line.targetFirstHalf && !!line.targetSecondHalf;
+
   if (mode === 'shadow') {
-    return [
-      { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.shadow },
-      { text: line.targetSecondHalf, mult: PAUSE_MULTIPLIERS.shadow },
-      { text: line.target, mult: PAUSE_MULTIPLIERS.shadow },
-    ];
+    if (isSplit) {
+      return [
+        { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.shadow, lang: 'target' },
+        { text: line.targetSecondHalf, mult: PAUSE_MULTIPLIERS.shadow, lang: 'target' },
+        { text: line.target, mult: PAUSE_MULTIPLIERS.shadow, lang: 'target' },
+      ];
+    } else {
+      return [
+        { text: line.target, mult: PAUSE_MULTIPLIERS.shadow, lang: 'target' },
+        { text: line.target, mult: PAUSE_MULTIPLIERS.shadow, lang: 'target' },
+      ];
+    }
   }
+
   if (mode === 'story') {
     const words = countWords(line.target);
     let pause = 1.0;
     if (words < 8) pause = 0.7;
     else if (words < 15) pause = 0.85;
-    return [{ text: line.target, pause: pause.toFixed(2) }];
+    return [{ text: line.target, pause: pause.toFixed(2), lang: 'target' }];
   }
 
   // Interlinear
-  return targetFirst
-    ? [
-        { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.targetHalf },
-        { text: line.nativeFirstHalf, mult: PAUSE_MULTIPLIERS.native },
-        { text: line.targetSecondHalf, mult: PAUSE_MULTIPLIERS.targetHalf },
-        { text: line.nativeSecondHalf, mult: PAUSE_MULTIPLIERS.native },
-        { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat },
-        { text: line.native, mult: PAUSE_MULTIPLIERS.native },
-      ]
-    : [
-        { text: line.nativeFirstHalf, mult: PAUSE_MULTIPLIERS.native },
-        { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.targetHalf },
-        { text: line.nativeSecondHalf, mult: PAUSE_MULTIPLIERS.native },
-        { text: line.targetSecondHalf, mult: PAUSE_MULTIPLIERS.targetHalf },
-        { text: line.native, mult: PAUSE_MULTIPLIERS.native },
-        { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat },
-      ];
+  if (isSplit) {
+    return targetFirst
+      ? [
+          { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.targetHalf, lang: 'target' },
+          { text: line.nativeFirstHalf, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
+          { text: line.targetSecondHalf, mult: PAUSE_MULTIPLIERS.targetHalf, lang: 'target' },
+          { text: line.nativeSecondHalf, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
+          { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat, lang: 'target' },
+          { text: line.native, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
+        ]
+      : [
+          { text: line.nativeFirstHalf, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
+          { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.targetHalf, lang: 'target' },
+          { text: line.nativeSecondHalf, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
+          { text: line.targetSecondHalf, mult: PAUSE_MULTIPLIERS.targetHalf, lang: 'target' },
+          { text: line.native, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
+          { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat, lang: 'target' },
+        ];
+  } else {
+    // Single format interlinear - repeat full sentence twice
+    return targetFirst
+      ? [
+          { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat, lang: 'target' },
+          { text: line.native, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
+          { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat, lang: 'target' },
+          { text: line.native, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
+        ]
+      : [
+          { text: line.native, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
+          { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat, lang: 'target' },
+          { text: line.native, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
+          { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat, lang: 'target' },
+        ];
+  }
 };
 
-export const generateSsml = (lines, options = {}) => {
+export const generateSsml = (chapters, options = {}) => {
   const { mode = 'interlinear', targetFirst = true } = options;
+  if (!chapters) return '';
+
+  const normalizedChapters = Array.isArray(chapters) ? chapters : [{ lines: chapters }];
+
   let output = '<speak>\n';
 
-  lines.forEach((line) => {
-    const parts = getParts(line, targetFirst, mode);
-    parts.forEach((part) => {
-      if (part.text) {
-        const escaped = escapeSsml(part.text);
-        const pause = part.pause || calculatePauseSeconds(part.text, part.mult);
-        output += `  ${escaped} ${formatBreak(pause)}\n`;
-      }
-    });
+  normalizedChapters.forEach((chapter, index) => {
+    if (chapter.lines) {
+      chapter.lines.forEach((line) => {
+        const parts = getLineParts(line, { mode, targetFirst });
+        parts.forEach((part) => {
+          if (part.text) {
+            const escaped = escapeSsml(part.text);
+            const pause = part.pause || calculatePauseSeconds(part.text, part.mult);
+            output += `  ${escaped} ${formatBreak(pause)}\n`;
+          }
+        });
+      });
+    }
+
+    // 2.0s pause between chapters
+    if (index < normalizedChapters.length - 1) {
+      output += `  ${formatBreak(2.0)}\n`;
+    }
   });
 
   output += '</speak>';
   return output;
 };
 
-export const generateReadable = (lines, options = {}) => {
+export const generateReadable = (chapters, options = {}) => {
   const { mode = 'interlinear', targetFirst = true } = options;
+  if (!chapters) return '';
+
+  const normalizedChapters = Array.isArray(chapters) ? chapters : [{ lines: chapters }];
   let output = '';
 
-  lines.forEach((line) => {
-    const parts = getParts(line, targetFirst, mode);
-    parts.forEach((part) => {
-      if (part.text) {
-        output += `${part.text}\n`;
-      }
-    });
+  normalizedChapters.forEach((chapter) => {
+    if (chapter.chapterTitle) {
+      output += `### ${chapter.chapterTitle}\n\n`;
+    }
+    if (chapter.lines) {
+      chapter.lines.forEach((line) => {
+        const parts = getLineParts(line, { mode, targetFirst });
+        parts.forEach((part) => {
+          if (part.text) {
+            output += `${part.text}\n`;
+          }
+        });
+        output += '\n';
+      });
+    }
     output += '\n';
   });
 

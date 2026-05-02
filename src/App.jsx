@@ -15,7 +15,10 @@ function App() {
     baseLanguage: 'English',
     targetLanguage: 'Spanish',
     level: 'A1',
-    storyLength: 'single',
+    chapterCount: 1,
+    wordsPerLine: 'medium',
+    wordsPerChapter: 100,
+    sentenceFormat: 'single',
     storyIdea: '',
     vocabulary: '',
   });
@@ -34,7 +37,10 @@ function App() {
       baseLanguage: 'English',
       targetLanguage: 'Spanish',
       level: 'A1',
-      storyLength: 'single',
+      chapterCount: 1,
+      wordsPerLine: 'medium',
+      wordsPerChapter: 100,
+      sentenceFormat: 'single',
       storyIdea: '',
       vocabulary: '',
     });

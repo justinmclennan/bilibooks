@@ -1,11 +1,18 @@
 import { useState, useMemo } from 'react';
-import { generateSsml, generateReadable, PAUSE_MULTIPLIERS, countWords } from '../utils/ssml';
+import { generateSsml, generateReadable, getLineParts, calculatePauseSeconds } from '../utils/ssml';
 
 const Step3Results = ({ formData, storyData, resetApp }) => {
   const [activeTab, setActiveTab] = useState('summary');
 
+  const chapters = useMemo(() => {
+    if (!storyData) return [];
+    if (storyData.chapters) return storyData.chapters;
+    if (storyData.lines) return [{ lines: storyData.lines }];
+    return [];
+  }, [storyData]);
+
   const contentVersions = useMemo(() => {
-    if (!storyData || !storyData.lines) return {};
+    if (!storyData || chapters.length === 0) return {};
     const configs = [
       { id: 'interlinearTargetFirst', label: 'Interlinear (Target First)', mode: 'interlinear', targetFirst: true },
       { id: 'interlinearNativeFirst', label: 'Interlinear (Native First)', mode: 'interlinear', targetFirst: false },
@@ -18,12 +25,12 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
         label: config.label,
         mode: config.mode,
         targetFirst: config.targetFirst,
-        ssml: generateSsml(storyData.lines, { mode: config.mode, targetFirst: config.targetFirst }),
-        readable: generateReadable(storyData.lines, { mode: config.mode, targetFirst: config.targetFirst }),
+        ssml: generateSsml(chapters, { mode: config.mode, targetFirst: config.targetFirst }),
+        readable: generateReadable(chapters, { mode: config.mode, targetFirst: config.targetFirst }),
       };
       return acc;
     }, {});
-  }, [storyData]);
+  }, [storyData, chapters]);
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
@@ -75,9 +82,9 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
                 <p className="font-body-lg text-body-lg font-bold text-on-surface">{formData.level}</p>
               </div>
               <div className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm">
-                <span className="material-symbols-outlined text-primary mb-sm">timer</span>
-                <p className="font-label-caps text-label-caps text-on-surface-variant uppercase">CHAPTER</p>
-                <p className="font-body-lg text-body-lg font-bold text-on-surface">Chapter 1</p>
+                <span className="material-symbols-outlined text-primary mb-sm">auto_stories</span>
+                <p className="font-label-caps text-label-caps text-on-surface-variant uppercase">CHAPTERS</p>
+                <p className="font-body-lg text-body-lg font-bold text-on-surface">{chapters.length} Chapters</p>
               </div>
             </div>
           )}
@@ -88,11 +95,22 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
                 <span className="material-symbols-outlined text-primary">description</span>
                 {storyData?.title || "Your Story"}
               </h3>
-              <div className="space-y-8">
-                {storyData?.lines?.map((line, idx) => (
-                  <div key={idx} className="group">
-                    <p className="font-body-lg text-on-surface font-semibold mb-1 group-hover:text-primary transition-colors">{line.target}</p>
-                    <p className="font-body-md text-on-surface-variant italic">{line.native}</p>
+              <div className="space-y-12">
+                {chapters.map((chapter, cIdx) => (
+                  <div key={cIdx} className="space-y-6">
+                    {chapter.chapterTitle && (
+                      <h4 className="font-headline-sm text-primary border-b border-outline-variant pb-2">
+                        {chapter.chapterTitle}
+                      </h4>
+                    )}
+                    <div className="space-y-8">
+                      {chapter.lines?.map((line, idx) => (
+                        <div key={idx} className="group">
+                          <p className="font-body-lg text-on-surface font-semibold mb-1 group-hover:text-primary transition-colors">{line.target}</p>
+                          <p className="font-body-md text-on-surface-variant italic">{line.native}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -127,7 +145,7 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
                   readable={data.readable}
                   mode={data.mode}
                   targetFirst={data.targetFirst}
-                  storyData={storyData}
+                  chapters={chapters}
                   formData={formData}
                   onCopy={copyToClipboard}
                   onDownload={downloadFile}
@@ -171,7 +189,7 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
   );
 };
 
-const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, storyData, formData, onCopy, onDownload }) => {
+const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, formData, onCopy, onDownload }) => {
   const [subTab, setSubTab] = useState('preview');
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [audioUrl, setAudioUrl] = useState(null);
@@ -184,48 +202,19 @@ const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, storyData, f
       // Build segments for concatenation
       const segments = [];
 
-      storyData.lines.forEach(line => {
-        if (mode === 'shadow') {
-          const parts = [
-            { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.shadow },
-            { text: line.targetSecondHalf, mult: PAUSE_MULTIPLIERS.shadow },
-            { text: line.target, mult: PAUSE_MULTIPLIERS.shadow },
-          ];
+      chapters.forEach((chapter, cIdx) => {
+        chapter.lines.forEach(line => {
+          const parts = getLineParts(line, { mode, targetFirst });
           parts.forEach(p => {
-            segments.push({ type: 'speech', lang: 'target', text: p.text });
-            segments.push({ type: 'pause', duration: countWords(p.text) * p.mult });
-          });
-        } else if (mode === 'story') {
-          const words = countWords(line.target);
-          let pause = 1.0;
-          if (words < 8) pause = 0.7;
-          else if (words < 15) pause = 0.85;
-          segments.push({ type: 'speech', lang: 'target', text: line.target });
-          segments.push({ type: 'pause', duration: pause });
-        } else {
-          // Interlinear
-          const parts = targetFirst
-            ? [
-                { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.targetHalf, lang: 'target' },
-                { text: line.nativeFirstHalf, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
-                { text: line.targetSecondHalf, mult: PAUSE_MULTIPLIERS.targetHalf, lang: 'target' },
-                { text: line.nativeSecondHalf, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
-                { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat, lang: 'target' },
-                { text: line.native, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
-              ]
-            : [
-                { text: line.nativeFirstHalf, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
-                { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.targetHalf, lang: 'target' },
-                { text: line.nativeSecondHalf, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
-                { text: line.targetSecondHalf, mult: PAUSE_MULTIPLIERS.targetHalf, lang: 'target' },
-                { text: line.native, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
-                { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat, lang: 'target' },
-              ];
-
-          parts.forEach(p => {
+            const pause = p.pause || calculatePauseSeconds(p.text, p.mult);
             segments.push({ type: 'speech', lang: p.lang, text: p.text });
-            segments.push({ type: 'pause', duration: countWords(p.text) * p.mult });
+            segments.push({ type: 'pause', duration: parseFloat(pause) });
           });
+        });
+
+        // 2.0s chapter break
+        if (cIdx < chapters.length - 1) {
+          segments.push({ type: 'pause', duration: 2.0 });
         }
       });
 

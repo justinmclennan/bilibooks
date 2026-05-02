@@ -20,16 +20,27 @@ const openai = new OpenAI({
 
 const ttsClient = new textToSpeech.TextToSpeechClient();
 
-const buildUserPrompt = ({ chapter, genre, level, focusVerbs, theme, storyLength, targetLanguage, baseLanguage }) => {
+const buildUserPrompt = ({
+  baseLanguage,
+  targetLanguage,
+  level,
+  chapterCount,
+  wordsPerLine,
+  wordsPerChapter,
+  sentenceFormat,
+  storyIdea,
+  vocabulary
+}) => {
   return `
 Target Language: ${targetLanguage}
 Base Language (Native): ${baseLanguage}
-Create Chapter ${chapter}.
-Genre: ${genre}
 Level: ${level}
-Focus verbs/Vocabulary: ${focusVerbs}
-Theme: ${theme}
-Story Length Preference: ${storyLength}
+Chapter Count: ${chapterCount}
+Words Per Chapter: ${wordsPerChapter}
+Words Per Line: ${wordsPerLine}
+Sentence Format: ${sentenceFormat}
+Vocabulary/Focus: ${vocabulary}
+Story Idea/Theme: ${storyIdea}
   `.trim();
 };
 
@@ -38,7 +49,10 @@ app.post('/api/generate-story', async (req, res) => {
     baseLanguage,
     targetLanguage,
     level,
-    storyLength,
+    chapterCount,
+    wordsPerLine,
+    wordsPerChapter,
+    sentenceFormat,
     storyIdea,
     vocabulary,
   } = req.body;
@@ -48,25 +62,24 @@ app.post('/api/generate-story', async (req, res) => {
   }
 
   const userPrompt = buildUserPrompt({
-    chapter: "1",
-    genre: "Drama",
-    level: level,
-    focusVerbs: vocabulary,
-    theme: storyIdea,
-    storyLength: storyLength,
-    targetLanguage: targetLanguage,
-    baseLanguage: baseLanguage,
+    baseLanguage,
+    targetLanguage,
+    level,
+    chapterCount,
+    wordsPerLine,
+    wordsPerChapter,
+    sentenceFormat,
+    storyIdea,
+    vocabulary,
   });
 
   try {
-    const dynamicSystemPrompt = STORY_SYSTEM_PROMPT.replace(/French/g, targetLanguage);
-
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: dynamicSystemPrompt
+          content: STORY_SYSTEM_PROMPT
         },
         {
           role: "user",
