@@ -80,7 +80,7 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
                 <div className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm">
                   <span className="material-symbols-outlined text-primary mb-sm">signal_cellular_alt</span>
                   <p className="font-label-caps text-label-caps text-on-surface-variant uppercase">LEVEL</p>
-                  <p className="font-body-lg text-body-lg font-bold text-on-surface">{formData.level}</p>
+                  <p className="font-body-lg text-body-lg font-bold text-on-surface">{formData.level} ({formData.sentenceLevelStyle})</p>
                 </div>
                 <div className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm">
                   <span className="material-symbols-outlined text-primary mb-sm">auto_stories</span>
@@ -108,12 +108,22 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
                   {chapters.map((chapter, idx) => (
                     <div key={idx} className="p-4 bg-surface-container-low rounded-xl border border-outline-variant">
                       <div className="flex justify-between items-start mb-2">
-                         <h4 className="font-bold text-on-surface">Chapter {chapter.chapterNumber}: {chapter.chapterTitle}</h4>
-                         {chapter.estimatedTargetWordCount && (
-                           <span className="text-[10px] font-bold text-on-surface-variant bg-surface-container px-2 py-0.5 rounded border border-outline-variant">
-                             {chapter.estimatedTargetWordCount} WORDS
-                           </span>
-                         )}
+                         <div className="flex flex-col">
+                           <h4 className="font-bold text-on-surface">Chapter {chapter.chapterNumber}: {chapter.chapterTitle}</h4>
+                           {!chapter.validationPassed && (
+                             <span className="text-[10px] text-error font-bold flex items-center gap-1">
+                               <span className="material-symbols-outlined text-xs">warning</span>
+                               Incomplete Alignment
+                             </span>
+                           )}
+                         </div>
+                         <div className="flex gap-2">
+                           {chapter.estimatedTargetWordCount && (
+                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${chapter.validationPassed ? 'text-on-surface-variant bg-surface-container border-outline-variant' : 'text-error bg-error-container border-error/20'}`}>
+                               {chapter.estimatedTargetWordCount} WORDS
+                             </span>
+                           )}
+                         </div>
                       </div>
                       <p className="text-body-sm text-on-surface-variant mb-3">{chapter.storyPurpose}</p>
                       <div className="flex flex-wrap gap-2">
@@ -236,38 +246,44 @@ const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, fo
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [audioUrl, setAudioUrl] = useState(null);
   const [audioError, setAudioError] = useState(null);
+  const [audioFormat, setAudioFormat] = useState('wav');
 
   const generateAudio = async () => {
     setIsGeneratingAudio(true);
     setAudioError(null);
     try {
-      // Build segments for concatenation
-      const segments = [];
+      let body = {};
+      const isBilingual = mode === 'interlinear';
 
-      chapters.forEach((chapter, cIdx) => {
-        chapter.lines.forEach(line => {
-          const parts = getLineParts(line, { mode, targetFirst });
-          parts.forEach(p => {
-            const pause = p.pause || calculatePauseSeconds(p.text, p.mult);
-            segments.push({ type: 'speech', lang: p.lang, text: p.text });
-            segments.push({ type: 'pause', duration: parseFloat(pause) });
+      if (isBilingual) {
+        // Build segments for interlinear stitching
+        const segments = [];
+        chapters.forEach((chapter, cIdx) => {
+          chapter.lines.forEach(line => {
+            const parts = getLineParts(line, { mode, targetFirst });
+            parts.forEach(p => {
+              const pause = p.pause || calculatePauseSeconds(p.text, p.mult);
+              segments.push({ type: 'speech', lang: p.lang, text: p.text });
+              segments.push({ type: 'pause', duration: parseFloat(pause) });
+            });
           });
+          if (cIdx < chapters.length - 1) {
+            segments.push({ type: 'pause', duration: 2.0 });
+          }
         });
-
-        // 2.0s chapter break
-        if (cIdx < chapters.length - 1) {
-          segments.push({ type: 'pause', duration: 2.0 });
+        body = { segments, targetLanguage: formData.targetLanguage, baseLanguage: formData.baseLanguage };
+      } else {
+        // Send SSML for target-only scripts
+        if (!ssml || !ssml.includes('<speak>')) {
+          throw new Error('No valid SSML available for this script yet.');
         }
-      });
+        body = { ssml, targetLanguage: formData.targetLanguage };
+      }
 
       const response = await fetch('/api/generate-audio', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          segments,
-          targetLanguage: formData.targetLanguage,
-          baseLanguage: formData.baseLanguage
-        }),
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();
@@ -282,10 +298,11 @@ const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, fo
         byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
       const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'audio/wav' });
+      const blob = new Blob([byteArray], { type: data.format === 'mp3' ? 'audio/mpeg' : 'audio/wav' });
 
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
+      setAudioFormat(data.format || 'wav');
     } catch (err) {
       console.error(err);
       setAudioError(err.message);
@@ -298,13 +315,14 @@ const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, fo
     if (!audioUrl) return;
     const a = document.createElement('a');
     a.href = audioUrl;
-    a.download = `${id}.wav`;
+    a.download = `${id}.${audioFormat}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
   };
 
   const isBilingual = mode === 'interlinear';
+  const hasSsml = ssml && ssml.includes('<speak>');
 
   return (
     <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden">
@@ -359,10 +377,11 @@ const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, fo
           {!audioUrl && !isGeneratingAudio && (
             <button
               onClick={generateAudio}
-              className="flex items-center gap-2 px-6 py-2.5 bg-secondary text-on-secondary rounded-lg font-headline-sm hover:bg-secondary-container transition-all active:scale-[0.98]"
+              disabled={!isBilingual && !hasSsml}
+              className="flex items-center gap-2 px-6 py-2.5 bg-secondary text-on-secondary rounded-lg font-headline-sm hover:bg-secondary-container transition-all active:scale-[0.98] disabled:opacity-50"
             >
               <span className="material-symbols-outlined">headphones</span>
-              Generate {isBilingual ? 'Bilingual ' : ''}Audio
+              {(!isBilingual && !hasSsml) ? 'No SSML Available' : `Generate ${isBilingual ? 'Bilingual ' : ''}Audio`}
             </button>
           )}
 
@@ -381,7 +400,7 @@ const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, fo
                 className="flex items-center gap-2 px-4 py-2 border-2 border-secondary text-secondary rounded-lg font-label-caps hover:bg-secondary/5 transition-all"
               >
                 <span className="material-symbols-outlined text-sm">download</span>
-                Download WAV
+                Download {audioFormat.toUpperCase()}
               </button>
             </div>
           )}

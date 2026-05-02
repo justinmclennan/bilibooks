@@ -1,9 +1,9 @@
 
 export const PAUSE_MULTIPLIERS = {
-  native: 0.6,
-  targetHalf: 0.9,    // More time to repeat the new half-sentence
-  targetRepeat: 0.7,  // More time to repeat the full sentence
-  shadow: 0.4,        // Brief pause for shadow practice
+  native: 0.75,
+  targetHalf: 0.50,
+  targetRepeat: 0.40,
+  shadow: 0.30,
 };
 
 export const countWords = (text) => {
@@ -25,14 +25,11 @@ export const calculatePauseSeconds = (text, multiplier) => {
   const words = countWords(text);
   let pause = words * multiplier;
 
-  // Add a base minimum for very short sentences
-  if (words > 0) pause += 0.5;
-
   // Round to nearest 0.25s
   pause = Math.round(pause * 4) / 4;
 
-  // Cap at 10s, min 0.5s
-  pause = Math.max(0.5, Math.min(10, pause));
+  // Cap at 10s, min 0.25s
+  pause = Math.max(0.25, Math.min(10, pause));
 
   return pause.toFixed(2);
 };
@@ -47,7 +44,6 @@ export const formatBreak = (seconds) => {
  */
 export const getLineParts = (line, options = {}) => {
   const { mode = 'interlinear', targetFirst = true } = options;
-  // A line is split if both halves are present and have content
   const isSplit = !!(line.targetFirstHalf && line.targetFirstHalf.trim()) &&
                   !!(line.targetSecondHalf && line.targetSecondHalf.trim());
 
@@ -76,6 +72,7 @@ export const getLineParts = (line, options = {}) => {
 
   // Interlinear Mode
   if (isSplit) {
+    // Target First: TargetHalf1, NativeHalf1, TargetHalf2, NativeHalf2, TargetFull, NativeFull
     return targetFirst
       ? [
           { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.targetHalf, lang: 'target' },
@@ -94,7 +91,7 @@ export const getLineParts = (line, options = {}) => {
           { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat, lang: 'target' },
         ];
   } else {
-    // Single format interlinear - repeat full sentence sequence twice for reinforcement
+    // Single format interlinear: Full Target, Full Native, Full Target, Full Native
     return targetFirst
       ? [
           { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat, lang: 'target' },
