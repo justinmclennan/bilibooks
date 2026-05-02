@@ -34,17 +34,12 @@ export function createSilenceBuffer(durationSeconds, sampleRate = 24000, numChan
 }
 
 /**
- * Concatenates multiple WAV buffers (stripping headers) into one single WAV.
- * Expects input buffers to be full WAV files with headers.
+ * Concatenates multiple PCM buffers into one single WAV.
+ * Expects input buffers to be raw PCM data (as returned by Google Cloud TTS LINEAR16).
  */
 export function concatenateWavs(buffersAndSilences, sampleRate = 24000) {
-  // Extract raw PCM data (skip first 44 bytes of each WAV buffer)
-  const rawData = buffersAndSilences.map(item => {
-    if (item.isSilence) {
-      return item.buffer;
-    }
-    return item.buffer.slice(44);
-  });
+  // Extract raw PCM data
+  const rawData = buffersAndSilences.map(item => item.buffer);
 
   const totalLength = rawData.reduce((acc, buf) => acc + buf.length, 0);
   const header = createWavHeader(totalLength, sampleRate);

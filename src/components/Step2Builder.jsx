@@ -1,14 +1,10 @@
 
 const Step2Builder = ({ formData, updateFormData, nextStep, prevStep, isGenerating }) => {
-  const wordsPerLineOptions = [
-    { id: 'short', label: 'Short', sub: '3–5 words' },
-    { id: 'medium', label: 'Medium', sub: '5–7 words' },
-    { id: 'long', label: 'Long', sub: '7–10 words' },
-  ];
-
-  const sentenceFormats = [
-    { id: 'single', label: 'Single', sub: 'One Line' },
-    { id: 'split', label: 'Split', sub: 'Two Lines' },
+  const sentenceLevelStyles = [
+    { id: 'pre-a1', label: 'Pre-A1', sub: '3–5 words' },
+    { id: 'a1', label: 'A1', sub: '5–7 words' },
+    { id: 'a2', label: 'A2', sub: '8–13 words' },
+    { id: 'b1', label: 'B1', sub: '14–20 words' },
   ];
 
   const planningModes = [
@@ -118,62 +114,33 @@ const Step2Builder = ({ formData, updateFormData, nextStep, prevStep, isGenerati
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-xl">
-           {/* Words Per Line */}
-          <div>
-            <label className="block font-headline-sm text-headline-sm text-on-surface mb-1">Words Per Spoken Line</label>
-            <p className="text-[11px] text-on-surface-variant mb-2">Controls the length of each audio chunk or sentence half.</p>
-            <div className="grid grid-cols-3 gap-2">
-              {wordsPerLineOptions.map((opt) => {
-                const isActive = formData.wordsPerLine === opt.id;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => updateFormData({ wordsPerLine: opt.id })}
-                    disabled={isGenerating}
-                    className={`flex flex-col items-center justify-center p-3 border-2 rounded-xl transition-all text-center ${
-                      isActive
-                        ? 'border-primary bg-primary-fixed/30'
-                        : 'border-outline-variant hover:border-primary-container'
-                    } ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <span className={`font-label-caps text-xs ${isActive ? 'text-primary' : 'text-on-surface'}`}>
-                      {opt.label}
-                    </span>
-                    <span className="text-[10px] text-on-surface-variant mt-1">{opt.sub}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Sentence Format */}
-          <div>
-            <label className="block font-headline-sm text-headline-sm text-on-surface mb-4">Sentence Format</label>
-            <div className="grid grid-cols-2 gap-2">
-              {sentenceFormats.map((fmt) => {
-                const isActive = formData.sentenceFormat === fmt.id;
-                return (
-                  <button
-                    key={fmt.id}
-                    type="button"
-                    onClick={() => updateFormData({ sentenceFormat: fmt.id })}
-                    disabled={isGenerating}
-                    className={`flex flex-col items-center justify-center p-3 border-2 rounded-xl transition-all text-center ${
-                      isActive
-                        ? 'border-primary bg-primary-fixed/30'
-                        : 'border-outline-variant hover:border-primary-container'
-                    } ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <span className={`font-label-caps text-xs ${isActive ? 'text-primary' : 'text-on-surface'}`}>
-                      {fmt.label}
-                    </span>
-                    <span className="text-[10px] text-on-surface-variant mt-1">{fmt.sub}</span>
-                  </button>
-                );
-              })}
-            </div>
+        <div>
+          <label className="block font-headline-sm text-headline-sm text-on-surface mb-1">Sentence Length / Level Style</label>
+          <p className="text-[11px] text-on-surface-variant mb-4">
+            Pre-A1 and A1 use one sentence per line. A2 and B1 use longer connected sentences split into two lines for audio practice.
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {sentenceLevelStyles.map((style) => {
+              const isActive = formData.sentenceLevelStyle === style.id;
+              return (
+                <button
+                  key={style.id}
+                  type="button"
+                  onClick={() => updateFormData({ sentenceLevelStyle: style.id })}
+                  disabled={isGenerating}
+                  className={`flex flex-col items-center justify-center p-3 border-2 rounded-xl transition-all text-center ${
+                    isActive
+                      ? 'border-primary bg-primary-fixed/30'
+                      : 'border-outline-variant hover:border-primary-container'
+                  } ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <span className={`font-label-caps text-xs ${isActive ? 'text-primary' : 'text-on-surface'}`}>
+                    {style.label}
+                  </span>
+                  <span className="text-[10px] text-on-surface-variant mt-1">{style.sub}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 

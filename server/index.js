@@ -21,12 +21,13 @@ const openai = new OpenAI({
 const ttsClient = new textToSpeech.TextToSpeechClient();
 
 function countTargetWords(chapterData) {
+  if (!chapterData.lines) return 0;
   return chapterData.lines.reduce((acc, line) => {
-    return acc + line.target.split(/\s+/).filter(w => w.length > 0).length;
+    return acc + (line.target || "").split(/\s+/).filter(w => w.length > 0).length;
   }, 0);
 }
 
-function validateChapter(chapterData, wordsPerChapter, wordsPerLine) {
+function validateChapter(chapterData, wordsPerChapter, sentenceLevelStyle) {
   const actualWordCount = countTargetWords(chapterData);
   let minWords;
 
@@ -37,20 +38,33 @@ function validateChapter(chapterData, wordsPerChapter, wordsPerLine) {
 
   const tooShort = actualWordCount < minWords;
 
-  let lineRange = { min: 3, max: 10 };
-  if (wordsPerLine === 'short') { lineRange = { min: 3, max: 5 }; }
-  else if (wordsPerLine === 'medium') { lineRange = { min: 5, max: 7 }; }
-  else if (wordsPerLine === 'long') { lineRange = { min: 7, max: 10 }; }
+  let lineRange = { min: 3, max: 20 };
+  let halfRange = null;
+
+  if (sentenceLevelStyle === 'pre-a1') { lineRange = { min: 3, max: 6 }; }
+  else if (sentenceLevelStyle === 'a1') { lineRange = { min: 5, max: 8 }; }
+  else if (sentenceLevelStyle === 'a2') { lineRange = { min: 8, max: 14 }; halfRange = { min: 4, max: 8 }; }
+  else if (sentenceLevelStyle === 'b1') { lineRange = { min: 14, max: 22 }; halfRange = { min: 6, max: 12 }; }
 
   let lineViolations = 0;
+  if (!chapterData.lines) return { valid: false, tooShort: true, tooManyViolations: true, actualWordCount: 0, lineViolations: 0 };
+
   chapterData.lines.forEach(line => {
-    if (line.targetFirstHalf) {
-      const c1 = line.targetFirstHalf.split(/\s+/).filter(w => w.length > 0).length;
-      const c2 = line.targetSecondHalf.split(/\s+/).filter(w => w.length > 0).length;
-      if (c1 < lineRange.min || c2 < lineRange.min) lineViolations++;
-    } else {
-      const c = line.target.split(/\s+/).filter(w => w.length > 0).length;
-      if (c < lineRange.min) lineViolations++;
+    const fullCount = (line.target || "").split(/\s+/).filter(w => w.length > 0).length;
+
+    // Check full sentence length
+    if (fullCount < lineRange.min || fullCount > lineRange.max) {
+      lineViolations++;
+      return;
+    }
+
+    // Check halves if applicable
+    if (halfRange) {
+      const c1 = (line.targetFirstHalf || "").split(/\s+/).filter(w => w.length > 0).length;
+      const c2 = (line.targetSecondHalf || "").split(/\s+/).filter(w => w.length > 0).length;
+      if (c1 < halfRange.min || c1 > halfRange.max || c2 < halfRange.min || c2 > halfRange.max) {
+        lineViolations++;
+      }
     }
   });
 
@@ -71,11 +85,11 @@ app.post('/api/generate-story', async (req, res) => {
     targetLanguage,
     level,
     chapterCount,
-    wordsPerLine,
+    sentenceLevelStyle,
     wordsPerChapter,
-    sentenceFormat,
     storyIdea,
     vocabulary,
+    planningMode
   } = req.body;
 
   if (!baseLanguage || !targetLanguage || !level) {
@@ -90,6 +104,7 @@ Base Language: ${baseLanguage}
 Chapters: ${chapterCount}
 Vocabulary: ${vocabulary}
 Idea: ${storyIdea}
+Planning Mode: ${planningMode}
     `.trim();
 
     const planningResponse = await openai.chat.completions.create({
@@ -112,9 +127,8 @@ Idea: ${storyIdea}
 Target Language: ${targetLanguage}
 Base Language: ${baseLanguage}
 Level: ${level}
-Words Per Line: ${wordsPerLine}
+Sentence Level Style: ${sentenceLevelStyle}
 Words Per Chapter: ${wordsPerChapter}
-Sentence Format: ${sentenceFormat}
 Chapter Plan: ${JSON.stringify(chapterPlan)}
       `.trim();
 
@@ -137,7 +151,7 @@ Chapter Plan: ${JSON.stringify(chapterPlan)}
       };
 
       let chapterData = await getChapter(storyUserPrompt);
-      let validation = validateChapter(chapterData, wordsPerChapter, wordsPerLine);
+      let validation = validateChapter(chapterData, wordsPerChapter, sentenceLevelStyle);
       let retryUsed = false;
 
       if (!validation.valid) {
@@ -148,11 +162,11 @@ Chapter Plan: ${JSON.stringify(chapterPlan)}
           correction += `Chapter ${chapterPlan.chapterNumber} is too short. It has only ${validation.actualWordCount} target-language words, but the requested target is ${wordsPerChapter}. Regenerate with approximately ${wordsPerChapter} target-language words. `;
         }
         if (validation.tooManyViolations) {
-          correction += `Too many lines (or half-lines) violate the '${wordsPerLine}' words-per-spoken-line requirement. Please ensure each line/half-line has the appropriate length. `;
+          correction += `Too many lines violate the '${sentenceLevelStyle}' style requirements. Please ensure every sentence and split half follows the specified length constraints. `;
         }
 
         chapterData = await getChapter(storyUserPrompt, correction.trim());
-        validation = validateChapter(chapterData, wordsPerChapter, wordsPerLine);
+        validation = validateChapter(chapterData, wordsPerChapter, sentenceLevelStyle);
         console.log(`Retry validation result:`, validation.valid);
       }
 
