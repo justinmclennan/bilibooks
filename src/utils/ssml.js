@@ -1,8 +1,7 @@
 
 export const PAUSE_MULTIPLIERS = {
   native: 0.75,
-  targetHalf: 0.50,
-  targetRepeat: 0.40,
+  target: 0.50,
   shadow: 0.30,
 };
 
@@ -72,38 +71,34 @@ export const getLineParts = (line, options = {}) => {
 
   // Interlinear Mode
   if (isSplit) {
-    // Target First: TargetHalf1, NativeHalf1, TargetHalf2, NativeHalf2, TargetFull, NativeFull
+    // 6-line pattern: H1_Native, H1_Target, H2_Native, H2_Target, Full_Native, Full_Target (if targetFirst is false)
     return targetFirst
       ? [
-          { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.targetHalf, lang: 'target' },
+          { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.target, lang: 'target' },
           { text: line.nativeFirstHalf, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
-          { text: line.targetSecondHalf, mult: PAUSE_MULTIPLIERS.targetHalf, lang: 'target' },
+          { text: line.targetSecondHalf, mult: PAUSE_MULTIPLIERS.target, lang: 'target' },
           { text: line.nativeSecondHalf, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
-          { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat, lang: 'target' },
+          { text: line.target, mult: PAUSE_MULTIPLIERS.target, lang: 'target' },
           { text: line.native, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
         ]
       : [
           { text: line.nativeFirstHalf, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
-          { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.targetHalf, lang: 'target' },
+          { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.target, lang: 'target' },
           { text: line.nativeSecondHalf, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
-          { text: line.targetSecondHalf, mult: PAUSE_MULTIPLIERS.targetHalf, lang: 'target' },
+          { text: line.targetSecondHalf, mult: PAUSE_MULTIPLIERS.target, lang: 'target' },
           { text: line.native, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
-          { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat, lang: 'target' },
+          { text: line.target, mult: PAUSE_MULTIPLIERS.target, lang: 'target' },
         ];
   } else {
-    // Single format interlinear: Full Target, Full Native, Full Target, Full Native
+    // Pre-A1 and A1: Full Native, Full Target (if targetFirst is false)
     return targetFirst
       ? [
-          { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat, lang: 'target' },
-          { text: line.native, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
-          { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat, lang: 'target' },
+          { text: line.target, mult: PAUSE_MULTIPLIERS.target, lang: 'target' },
           { text: line.native, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
         ]
       : [
           { text: line.native, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
-          { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat, lang: 'target' },
-          { text: line.native, mult: PAUSE_MULTIPLIERS.native, lang: 'native' },
-          { text: line.target, mult: PAUSE_MULTIPLIERS.targetRepeat, lang: 'target' },
+          { text: line.target, mult: PAUSE_MULTIPLIERS.target, lang: 'target' },
         ];
   }
 };
@@ -124,9 +119,10 @@ export const generateSsml = (chapters, options = {}) => {
           if (part.text) {
             const escaped = escapeSsml(part.text);
             const pause = part.pause || calculatePauseSeconds(part.text, part.mult);
-            output += `  ${escaped} ${formatBreak(pause)}\n`;
+            output += `  ${escaped}\n  ${formatBreak(pause)}\n`;
           }
         });
+        output += '\n'; // Add newline between 6-line blocks for readability
       });
     }
 

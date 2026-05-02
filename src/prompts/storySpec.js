@@ -55,15 +55,17 @@ Follow these rules for EVERY line based on 'sentenceLevelStyle':
 
 - 'a2':
   - Each full target-language sentence MUST be 8–13 words.
-  - MUST include a connector (because, but, so, when, while, if, before, after).
-  - MUST be split into two meaningful halves.
+  - MUST include one connector from this list: because, but, so, when, while, if, before, after.
+  - MUST be split into two meaningful halves, usually around the connector.
   - FORMAT: Provide 'target', 'native', 'targetFirstHalf', 'targetSecondHalf', 'nativeFirstHalf', and 'nativeSecondHalf'.
+  - Mirror the target structure in the native translation exactly.
 
 - 'b1':
   - Each full target-language sentence MUST be 14–20 words.
-  - MUST include a connector, subordinate clause, or clear complex structure.
-  - MUST be split into two meaningful halves.
+  - MUST include one connector from this list: because, but, so, although, while, when, after, before, if, even though, until, since, as, unless, however, therefore.
+  - MUST be split into two meaningful halves, usually around the connector.
   - FORMAT: Provide 'target', 'native', 'targetFirstHalf', 'targetSecondHalf', 'nativeFirstHalf', and 'nativeSecondHalf'.
+  - Mirror the target structure in the native translation exactly.
 
 LANGUAGE RULES:
 - ALWAYS put the target language in 'target' fields and native language in 'native' fields.
@@ -85,10 +87,10 @@ OUTPUT FORMAT (JSON ONLY):
     {
       "native": "Full native sentence.",
       "target": "Full target sentence.",
-      "nativeFirstHalf": "",
-      "nativeSecondHalf": "",
-      "targetFirstHalf": "",
-      "targetSecondHalf": ""
+      "nativeFirstHalf": "Part 1 of native sentence.",
+      "nativeSecondHalf": "Part 2 of native sentence.",
+      "targetFirstHalf": "Part 1 of target sentence.",
+      "targetSecondHalf": "Part 2 of target sentence."
     }
   ],
   "vocabularyList": [

@@ -64,10 +64,13 @@ function validateChapter(chapterData, wordsPerChapter, sentenceLevelStyle) {
     }
 
     if (mustSplit) {
-      const c1 = (line.targetFirstHalf || "").split(/\s+/).filter(w => w.length > 0).length;
-      const c2 = (line.targetSecondHalf || "").split(/\s+/).filter(w => w.length > 0).length;
-      if (c1 === 0 || c2 === 0) {
-        lineViolations.push(`Line ${idx + 1} is not split into two halves`);
+      const h1t = (line.targetFirstHalf || "").trim();
+      const h2t = (line.targetSecondHalf || "").trim();
+      const h1n = (line.nativeFirstHalf || "").trim();
+      const h2n = (line.nativeSecondHalf || "").trim();
+
+      if (!h1t || !h2t || !h1n || !h2n) {
+        lineViolations.push(`Line ${idx + 1} is missing split halves (H1T, H2T, H1N, or H2N)`);
       }
     }
   });
@@ -175,7 +178,7 @@ Continuity Context: ${previousSummaries.join(' ')}
         if (validation.tooShort || validation.tooLong) {
           correction = `This chapter failed length validation. It has ${validation.actualWordCount} target-language words, but it must have ${validation.minWords}–${validation.maxWords}. Regenerate this chapter with the correct number of target-language words while preserving the chapter purpose, vocabulary plan, CEFR level, and sentence style.`;
         } else if (validation.tooManyViolations) {
-          correction = `This chapter failed sentence style validation. Violations: ${validation.lineViolations.slice(0, 3).join(', ')}. Please ensure every sentence follows the ${sentenceLevelStyle} length rules and splitting requirements.`;
+          correction = `This chapter failed sentence style validation. Violations: ${validation.lineViolations.slice(0, 3).join(', ')}. Please ensure every sentence follows the ${sentenceLevelStyle} rules (e.g. word count, splits, connectors).`;
         }
 
         chapterData = await getChapterFromAI(generatePrompt(correction));
@@ -216,8 +219,8 @@ Continuity Context: ${previousSummaries.join(' ')}
 
 /**
  * Audio Generation Endpoint
- * Single-voice TTS can return MP3 directly from Google TTS.
- * Dual-voice interlinear audio requires stitching multiple audio segments (currently outputting WAV).
+ * Single-voice TTS returns a JSON object with base64 encoded MP3 audio.
+ * Dual-voice interlinear audio stitches multiple segments and returns a JSON object with base64 encoded WAV audio.
  */
 app.post('/api/generate-audio', async (req, res) => {
   const { ssml, segments, targetLanguage, baseLanguage, voiceName } = req.body;
@@ -266,8 +269,7 @@ app.post('/api/generate-audio', async (req, res) => {
       }
 
       const finalWav = concatenateWavs(audioBuffers);
-      res.set('Content-Type', 'audio/wav');
-      res.send(finalWav);
+      res.json({ audioContent: finalWav.toString('base64'), format: 'wav' });
       return;
     } catch (error) {
        console.error('Bilingual Audio Error:', error);
@@ -298,8 +300,7 @@ app.post('/api/generate-audio', async (req, res) => {
     };
 
     const [response] = await ttsClient.synthesizeSpeech(request);
-    res.set('Content-Type', 'audio/mpeg');
-    res.send(response.audioContent);
+    res.json({ audioContent: response.audioContent.toString('base64'), format: 'mp3' });
   } catch (error) {
     console.error('Google TTS Error:', error);
     let msg = 'Audio generation failed. Check backend logs.';
