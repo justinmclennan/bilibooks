@@ -138,8 +138,10 @@ Chapter Plan: ${JSON.stringify(chapterPlan)}
 
       let chapterData = await getChapter(storyUserPrompt);
       let validation = validateChapter(chapterData, wordsPerChapter, wordsPerLine);
+      let retryUsed = false;
 
       if (!validation.valid) {
+        retryUsed = true;
         console.log(`Validation failed for Chapter ${chapterPlan.chapterNumber}:`, validation);
         let correction = "";
         if (validation.tooShort) {
@@ -155,6 +157,10 @@ Chapter Plan: ${JSON.stringify(chapterPlan)}
       }
 
       chapterData.estimatedTargetWordCount = validation.actualWordCount;
+      chapterData.validationPassed = validation.valid;
+      chapterData.retryUsed = retryUsed;
+      chapterData.validationDetails = validation;
+
       chapters.push(chapterData);
       if (chapterData.vocabularyList) {
         combinedVocabList = [...combinedVocabList, ...chapterData.vocabularyList];
@@ -169,7 +175,8 @@ Chapter Plan: ${JSON.stringify(chapterPlan)}
       title: plan.title,
       storyArc: plan.storyArc,
       chapters: chapters,
-      vocabularyList: uniqueVocab
+      vocabularyList: uniqueVocab,
+      allPassed: chapters.every(c => c.validationPassed)
     });
 
   } catch (error) {

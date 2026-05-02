@@ -39,12 +39,22 @@ WORDS PER CHAPTER TARGETS:
 
 WORDS PER SPOKEN LINE (HALF-SENTENCE) TARGETS:
 - The 'wordsPerLine' range applies to each spoken line or sentence half.
-- If 'sentenceFormat' is 'split', both 'targetFirstHalf' and 'targetSecondHalf' should ideally fall within the range.
-- If 'sentenceFormat' is 'single', the full 'target' line should fall within the range.
+- If 'sentenceFormat' is 'split', both 'targetFirstHalf' and 'targetSecondHalf' MUST fall within the range.
+- If 'sentenceFormat' is 'single', the full 'target' line MUST fall within the range.
 - 'short': Aim for 3–5 words per line.
 - 'medium': Aim for 5–7 words per line.
 - 'long': Aim for 7–10 words per line.
-- AVOID tiny second halves (1–3 words) unless absolutely necessary. Rewrite or re-split sentences so both halves fit the selected range better.
+- AVOID tiny second halves (1–3 words) unless absolutely necessary.
+- Rewrite or re-split sentences so both halves are balanced, meaningful, and fit the selected range.
+- Example: Instead of "Edmond was locked | in a cell" (3|3), if range is 5-7, use "Edmond was locked in a dark room | by the cruel prison guards" (7|6).
+
+LANGUAGE RULES:
+- ALWAYS put the target language in 'target' fields and native language in 'native' fields. NEVER swap them.
+- FOR FRENCH A1/A2:
+  - AVOID Passé Simple (e.g., fut, fit, répondit). It is too literary for learners.
+  - PREFER Present Tense.
+  - If past tense is needed, use Passé Composé (e.g., a été, a fait, a répondu).
+- Use natural, common learner-friendly language.
 
 RULES:
 - Use the provided 'newFocusWords' and 'reviewWords' naturally and repeatedly.

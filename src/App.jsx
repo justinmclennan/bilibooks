@@ -177,11 +177,22 @@ function App() {
             </div>
 
             {/* Success Message */}
-            <div className="mb-xl bg-secondary-container/20 p-lg rounded-xl flex items-center gap-md border border-secondary-container/40">
-              <div className="bg-secondary text-on-secondary p-sm rounded-full flex items-center justify-center">
-                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+            <div className="mb-xl space-y-md">
+              <div className="bg-secondary-container/20 p-lg rounded-xl flex items-center gap-md border border-secondary-container/40">
+                <div className="bg-secondary text-on-secondary p-sm rounded-full flex items-center justify-center">
+                  <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                </div>
+                <p className="font-headline-sm text-headline-sm text-on-secondary-fixed-variant">Your stories are ready!</p>
               </div>
-              <p className="font-headline-sm text-headline-sm text-on-secondary-fixed-variant">Your stories are ready!</p>
+
+              {storyData?.allPassed === false && (
+                <div className="bg-error-container/20 p-md rounded-xl flex items-center gap-md border border-error/20 animate-in slide-in-from-top-2">
+                  <span className="material-symbols-outlined text-error">warning</span>
+                  <p className="text-body-sm text-on-error-container font-semibold">
+                    Note: This story may not fully match all the selected length settings.
+                  </p>
+                </div>
+              )}
             </div>
 
             <Step3Results formData={formData} storyData={storyData} resetApp={resetApp} />
