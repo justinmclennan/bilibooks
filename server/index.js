@@ -20,6 +20,26 @@ const openai = new OpenAI({
 
 const ttsClient = new textToSpeech.TextToSpeechClient();
 
+const SENTENCE_COUNT_TARGETS = {
+  'pre-a1': { 150: { min: 30, max: 50 }, 300: { min: 60, max: 100 }, 450: { min: 90, max: 150 } },
+  'a1': { 150: { min: 22, max: 30 }, 300: { min: 43, max: 60 }, 450: { min: 65, max: 90 } },
+  'a2': { 150: { min: 12, max: 19 }, 300: { min: 24, max: 38 }, 450: { min: 35, max: 57 } },
+  'b1': { 150: { min: 8, max: 11 }, 300: { min: 15, max: 22 }, 450: { min: 23, max: 32 } },
+};
+
+function getSentenceCountRange(style, words) {
+  const level = SENTENCE_COUNT_TARGETS[style];
+  if (!level) return { min: 5, max: 10 };
+
+  // Find closest word target
+  const targets = [150, 300, 450];
+  const closest = targets.reduce((prev, curr) =>
+    Math.abs(curr - words) < Math.abs(prev - words) ? curr : prev
+  );
+
+  return level[closest] || { min: 10, max: 20 };
+}
+
 /**
  * Pedagogical word count tool: Counts target-language words only.
  */
@@ -35,15 +55,19 @@ function countTargetWords(chapterData) {
  */
 function validateChapter(chapterData, wordsPerChapter, sentenceLevelStyle) {
   const actualWordCount = countTargetWords(chapterData);
-  let minWords, maxWords;
+  const actualSentenceCount = chapterData.lines ? chapterData.lines.length : 0;
 
+  let minWords, maxWords;
   if (wordsPerChapter === 150) { minWords = 125; maxWords = 175; }
   else if (wordsPerChapter === 300) { minWords = 250; maxWords = 350; }
   else if (wordsPerChapter === 450) { minWords = 400; maxWords = 500; }
   else { minWords = wordsPerChapter * 0.8; maxWords = wordsPerChapter * 1.2; }
 
+  const sentenceRange = getSentenceCountRange(sentenceLevelStyle, wordsPerChapter);
+
   const tooShort = actualWordCount < minWords;
   const tooLong = actualWordCount > maxWords;
+  const lowSentenceCount = actualSentenceCount < sentenceRange.min;
 
   let lineRange = { min: 3, max: 20 };
   let mustSplit = false;
@@ -54,23 +78,20 @@ function validateChapter(chapterData, wordsPerChapter, sentenceLevelStyle) {
   else if (sentenceLevelStyle === 'b1') { lineRange = { min: 14, max: 20 }; mustSplit = true; }
 
   let lineViolations = [];
-  if (!chapterData.lines) return { valid: false, tooShort: true, tooLong: false, tooManyViolations: true, actualWordCount: 0, lineViolations: ["No lines generated"] };
+  if (!chapterData.lines) return { valid: false, tooShort: true, tooLong: false, tooManyViolations: true, actualWordCount: 0, actualSentenceCount: 0, lineViolations: ["No lines generated"] };
 
   chapterData.lines.forEach((line, idx) => {
     const fullCount = (line.target || "").split(/\s+/).filter(w => w.length > 0).length;
-
     if (fullCount < lineRange.min || fullCount > lineRange.max) {
       lineViolations.push(`Line ${idx + 1} has ${fullCount} words (Expected ${lineRange.min}-${lineRange.max})`);
     }
-
     if (mustSplit) {
       const h1t = (line.targetFirstHalf || "").trim();
       const h2t = (line.targetSecondHalf || "").trim();
       const h1n = (line.nativeFirstHalf || "").trim();
       const h2n = (line.nativeSecondHalf || "").trim();
-
       if (!h1t || !h2t || !h1n || !h2n) {
-        lineViolations.push(`Line ${idx + 1} is missing split halves (H1T, H2T, H1N, or H2N)`);
+        lineViolations.push(`Line ${idx + 1} is missing split halves`);
       }
     }
   });
@@ -78,11 +99,14 @@ function validateChapter(chapterData, wordsPerChapter, sentenceLevelStyle) {
   const tooManyViolations = lineViolations.length > (chapterData.lines.length * 0.2);
 
   return {
-    valid: !tooShort && !tooLong && !tooManyViolations,
+    valid: !tooShort && !tooLong && !lowSentenceCount && !tooManyViolations,
     tooShort,
     tooLong,
+    lowSentenceCount,
     tooManyViolations,
     actualWordCount,
+    actualSentenceCount,
+    sentenceRange,
     lineViolations,
     minWords,
     maxWords
@@ -134,18 +158,27 @@ Planning Mode: ${planningMode}
     let previousSummaries = [];
 
     for (const chapterPlan of plan.chapters) {
-      console.log(`--- Generating Chapter ${chapterPlan.chapterNumber}: ${chapterPlan.chapterTitle} ---`);
+      const sRange = getSentenceCountRange(sentenceLevelStyle, wordsPerChapter);
+      const targetSentences = Math.floor((sRange.min + sRange.max) / 2);
 
-      const generatePrompt = (retryMessage = null) => {
+      console.log(`--- Generating Chapter ${chapterPlan.chapterNumber}: ${chapterPlan.chapterTitle} ---`);
+      console.log(`Requested Style: ${sentenceLevelStyle}, Words: ${wordsPerChapter}, Target Sentences: ${targetSentences}`);
+
+      const generatePrompt = (retryMessage = null, existingLines = null) => {
         let prompt = `
 Target Language: ${targetLanguage}
 Base Language: ${baseLanguage}
 CEFR Level: ${level}
 Sentence Level Style: ${sentenceLevelStyle}
 Words Per Chapter Target: ${wordsPerChapter}
+Target Sentence Count: ${targetSentences}
 Chapter Info: ${JSON.stringify(chapterPlan)}
 Continuity Context: ${previousSummaries.join(' ')}
         `.trim();
+
+        if (existingLines) {
+          prompt += `\n\nCONTINUE STORY: The chapter is currently too short. Here are the existing lines:\n${JSON.stringify(existingLines)}\n\nPlease CONTINUE the story starting from the last line and add approximately ${targetSentences - existingLines.length} more sentences to reach the target word count. DO NOT repeat the beginning of the story.`;
+        }
 
         if (retryMessage) {
           prompt += `\n\nRETRY INSTRUCTION: ${retryMessage}`;
@@ -170,23 +203,44 @@ Continuity Context: ${previousSummaries.join(' ')}
       let validation = validateChapter(chapterData, wordsPerChapter, sentenceLevelStyle);
       let retryUsed = false;
 
+      // Handle too short / low sentence count via Continuation
+      if (!validation.valid && (validation.tooShort || validation.lowSentenceCount)) {
+        retryUsed = true;
+        console.log(`Chapter too short (${validation.actualWordCount} words, ${validation.actualSentenceCount} sentences). Triggering continuation...`);
+        const continuationData = await getChapterFromAI(generatePrompt(null, chapterData.lines));
+
+        // Append new lines
+        if (continuationData.lines && Array.isArray(continuationData.lines)) {
+          chapterData.lines = [...chapterData.lines, ...continuationData.lines];
+          if (continuationData.vocabularyList) {
+            chapterData.vocabularyList = [...(chapterData.vocabularyList || []), ...continuationData.vocabularyList];
+          }
+          chapterData.chapterSummary = continuationData.chapterSummary || chapterData.chapterSummary;
+        }
+
+        validation = validateChapter(chapterData, wordsPerChapter, sentenceLevelStyle);
+        console.log(`Continuation result: ${validation.valid ? 'PASSED' : 'STILL FAILING'} (${validation.actualWordCount} words)`);
+      }
+
+      // Handle other violations (formatting, length) via regular retry
       if (!validation.valid) {
         retryUsed = true;
         console.log(`Validation failed for Ch ${chapterPlan.chapterNumber}:`, validation);
 
         let correction = "";
-        if (validation.tooShort || validation.tooLong) {
-          correction = `This chapter failed length validation. It has ${validation.actualWordCount} target-language words, but it must have ${validation.minWords}–${validation.maxWords}. Regenerate this chapter with the correct number of target-language words while preserving the chapter purpose, vocabulary plan, CEFR level, and sentence style.`;
+        if (validation.tooShort || validation.tooLong || validation.lowSentenceCount) {
+          correction = `This chapter is ${validation.actualWordCount} words and ${validation.actualSentenceCount} sentences. It must have ${validation.minWords}–${validation.maxWords} words and at least ${validation.sentenceRange.min} sentences. Regenerate this chapter completely with the correct length while preserving the plan.`;
         } else if (validation.tooManyViolations) {
-          correction = `This chapter failed sentence style validation. Violations: ${validation.lineViolations.slice(0, 3).join(', ')}. Please ensure every sentence follows the ${sentenceLevelStyle} rules (e.g. word count, splits, connectors).`;
+          correction = `This chapter failed sentence style validation. Violations: ${validation.lineViolations.slice(0, 3).join(', ')}. Please ensure every sentence follows the ${sentenceLevelStyle} rules.`;
         }
 
         chapterData = await getChapterFromAI(generatePrompt(correction));
         validation = validateChapter(chapterData, wordsPerChapter, sentenceLevelStyle);
-        console.log(`Retry result for Ch ${chapterPlan.chapterNumber}: ${validation.valid ? 'PASSED' : 'FAILED'}`);
+        console.log(`Final retry result for Ch ${chapterPlan.chapterNumber}: ${validation.valid ? 'PASSED' : 'FAILED'}`);
       }
 
       chapterData.estimatedTargetWordCount = validation.actualWordCount;
+      chapterData.actualSentenceCount = validation.actualSentenceCount;
       chapterData.validationPassed = validation.valid;
       chapterData.retryUsed = retryUsed;
       chapterData.validationDetails = validation;
@@ -219,22 +273,13 @@ Continuity Context: ${previousSummaries.join(' ')}
 
 /**
  * Audio Generation Endpoint
- * Single-voice TTS returns a JSON object with base64 encoded MP3 audio.
- * Dual-voice interlinear audio stitches multiple segments and returns a JSON object with base64 encoded WAV audio.
  */
 app.post('/api/generate-audio', async (req, res) => {
   const { ssml, segments, targetLanguage, baseLanguage, voiceName } = req.body;
 
   console.log('--- Audio Generation Request ---');
-  console.log('SSML provided:', !!ssml);
-  console.log('Segments provided:', !!segments);
-  console.log('Audio format requested:', ssml ? 'MP3 (SSML)' : 'WAV (Segments)');
-  console.log('Target Lang:', targetLanguage);
-  console.log('Voice Name:', voiceName);
-
   if (ssml) {
-    console.log('SSML length:', ssml.length);
-    console.log('SSML Preview:', ssml.substring(0, 120));
+    console.log('SSML provided, length:', ssml.length);
   }
 
   // Handle segments for bilingual/stitching (WAV output)
@@ -273,7 +318,7 @@ app.post('/api/generate-audio', async (req, res) => {
       return;
     } catch (error) {
        console.error('Bilingual Audio Error:', error);
-       return res.status(500).json({ error: 'Bilingual audio generation failed. Check backend logs.' });
+       return res.status(500).json({ error: 'Bilingual audio generation failed.' });
     }
   }
 
@@ -303,13 +348,7 @@ app.post('/api/generate-audio', async (req, res) => {
     res.json({ audioContent: response.audioContent.toString('base64'), format: 'mp3' });
   } catch (error) {
     console.error('Google TTS Error:', error);
-    let msg = 'Audio generation failed. Check backend logs.';
-    if (error.code === 7) msg = 'Permission denied for Text-to-Speech.';
-    if (error.code === 3) msg = 'No valid SSML was provided for audio generation.';
-    if (error.message?.includes('credentials')) msg = 'Google credentials were not found.';
-    if (error.message?.includes('API has not been used')) msg = 'Google Cloud Text-to-Speech API may not be enabled.';
-
-    res.status(500).json({ error: msg });
+    res.status(500).json({ error: 'Audio generation failed.' });
   }
 });
 

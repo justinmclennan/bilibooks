@@ -35,45 +35,42 @@ WORDS PER CHAPTER TARGETS:
 - If 'wordsPerChapter' is 150: Target 125–175 target-language words.
 - If 'wordsPerChapter' is 300: Target 250–350 target-language words.
 - If 'wordsPerChapter' is 450: Target 400–500 target-language words.
-- Generate as many lines as needed to reach the requested word count.
+- You will be given a specific 'targetSentenceCount' to reach. YOU MUST MEET THIS COUNT.
 
 SENTENCE LEVEL STYLE (STRICT TARGETS):
 Follow these rules for EVERY line based on 'sentenceLevelStyle':
 
 - 'pre-a1':
   - Each full target-language sentence MUST be 3–5 words.
-  - Simple sentences only.
-  - One sentence per line.
+  - Simple sentences only. One sentence per line.
   - FORMAT: Use 'target' and 'native' fields. Set 'targetFirstHalf', 'targetSecondHalf', 'nativeFirstHalf', 'nativeSecondHalf' to empty strings.
 
 - 'a1':
   - Each full target-language sentence MUST be 5–7 words.
-  - Simple but complete sentences.
-  - Common vocabulary, avoid difficult pronouns and complex grammar.
-  - One sentence per line.
+  - Simple but complete sentences. Common vocabulary. One sentence per line.
   - FORMAT: Use 'target' and 'native' fields. Set 'targetFirstHalf', 'targetSecondHalf', 'nativeFirstHalf', 'nativeSecondHalf' to empty strings.
 
 - 'a2':
   - Each full target-language sentence MUST be 8–13 words.
-  - MUST include one connector from this list: because, but, so, when, while, if, before, after.
+  - MUST include one connector (because, but, so, when, while, if, before, after).
   - MUST be split into two meaningful halves, usually around the connector.
   - FORMAT: Provide 'target', 'native', 'targetFirstHalf', 'targetSecondHalf', 'nativeFirstHalf', and 'nativeSecondHalf'.
-  - Mirror the target structure in the native translation exactly.
 
 - 'b1':
   - Each full target-language sentence MUST be 14–20 words.
-  - MUST include one connector from this list: because, but, so, although, while, when, after, before, if, even though, until, since, as, unless, however, therefore.
+  - MUST include one connector (because, but, so, although, while, when, after, before, if, even though, until, since, as, unless, however, therefore).
   - MUST be split into two meaningful halves, usually around the connector.
   - FORMAT: Provide 'target', 'native', 'targetFirstHalf', 'targetSecondHalf', 'nativeFirstHalf', and 'nativeSecondHalf'.
-  - Mirror the target structure in the native translation exactly.
 
 LANGUAGE RULES:
 - ALWAYS put the target language in 'target' fields and native language in 'native' fields.
-- FOR FRENCH A1/A2:
-  - NEVER use Passé Simple (e.g., fut, fit, répondit).
-  - PREFER Present Tense.
-  - If past tense is required, use Passé Composé (e.g., a été, a fait, a répondu).
+- FOR FRENCH A1/A2: NEVER use Passé Simple. PREFER Present Tense or Passé Composé.
 - Use natural, adult-appropriate but learner-friendly vocabulary.
+
+CONTINUATION RULES:
+- If you are asked to 'CONTINUE' a chapter, do NOT repeat the story from the beginning.
+- Start exactly where the previous lines ended and add the requested number of new sentences.
+- Ensure the plot remains coherent and follows the 'storyPurpose'.
 
 OUTPUT FORMAT (JSON ONLY):
 {
@@ -82,15 +79,15 @@ OUTPUT FORMAT (JSON ONLY):
   "newFocusWords": [],
   "reviewWords": [],
   "storyPurpose": "",
-  "chapterSummary": "Brief summary of what happened in this chapter for continuity",
+  "chapterSummary": "Brief summary for continuity",
   "lines": [
     {
       "native": "Full native sentence.",
       "target": "Full target sentence.",
-      "nativeFirstHalf": "Part 1 of native sentence.",
-      "nativeSecondHalf": "Part 2 of native sentence.",
-      "targetFirstHalf": "Part 1 of target sentence.",
-      "targetSecondHalf": "Part 2 of target sentence."
+      "nativeFirstHalf": "Part 1 (for A2/B1).",
+      "nativeSecondHalf": "Part 2 (for A2/B1).",
+      "targetFirstHalf": "Part 1 (for A2/B1).",
+      "targetSecondHalf": "Part 2 (for A2/B1)."
     }
   ],
   "vocabularyList": [
