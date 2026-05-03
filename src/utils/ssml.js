@@ -54,6 +54,7 @@ export const getLineParts = (line, options = {}) => {
         { text: line.target, mult: PAUSE_MULTIPLIERS.shadow, lang: 'target' },
       ];
     } else {
+      // For Pre-A1/A1 Shadow, repeating the target line twice for practice
       return [
         { text: line.target, mult: PAUSE_MULTIPLIERS.shadow, lang: 'target' },
         { text: line.target, mult: PAUSE_MULTIPLIERS.shadow, lang: 'target' },
@@ -71,7 +72,7 @@ export const getLineParts = (line, options = {}) => {
 
   // Interlinear Mode
   if (isSplit) {
-    // 6-line pattern: H1_Native, H1_Target, H2_Native, H2_Target, Full_Native, Full_Target (if targetFirst is false)
+    // 6-line pattern for A2/B1
     return targetFirst
       ? [
           { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.target, lang: 'target' },
@@ -90,7 +91,7 @@ export const getLineParts = (line, options = {}) => {
           { text: line.target, mult: PAUSE_MULTIPLIERS.target, lang: 'target' },
         ];
   } else {
-    // Pre-A1 and A1: Full Native, Full Target (if targetFirst is false)
+    // Pre-A1 and A1: Full line pattern
     return targetFirst
       ? [
           { text: line.target, mult: PAUSE_MULTIPLIERS.target, lang: 'target' },

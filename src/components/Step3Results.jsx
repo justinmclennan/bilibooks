@@ -158,8 +158,7 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
                     <div className="space-y-8">
                       {chapter.lines?.map((line, idx) => (
                         <div key={idx} className="group">
-                          <p className="font-body-lg text-on-surface font-semibold mb-1 group-hover:text-primary transition-colors">{line.target}</p>
-                          <p className="font-body-md text-on-surface-variant italic">{line.native}</p>
+                          <p className="font-body-lg text-on-surface font-semibold group-hover:text-primary transition-colors">{line.target}</p>
                         </div>
                       ))}
                     </div>

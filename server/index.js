@@ -187,10 +187,15 @@ Continuity Context: ${previousSummaries.join(' ')}
       };
 
       const getChapterFromAI = async (prompt) => {
+        // Inject languages into the system prompt
+        const systemPrompt = STORY_SYSTEM_PROMPT
+          .replace(/{targetLanguage}/g, targetLanguage)
+          .replace(/{baseLanguage}/g, baseLanguage);
+
         const response = await openai.chat.completions.create({
           model: "gpt-4o",
           messages: [
-            { role: "system", content: STORY_SYSTEM_PROMPT },
+            { role: "system", content: systemPrompt },
             { role: "user", content: prompt }
           ],
           response_format: { type: "json_object" },
@@ -203,10 +208,13 @@ Continuity Context: ${previousSummaries.join(' ')}
       let validation = validateChapter(chapterData, wordsPerChapter, sentenceLevelStyle);
       let retryUsed = false;
 
-      // Handle too short / low sentence count via Continuation
-      if (!validation.valid && (validation.tooShort || validation.lowSentenceCount)) {
+      // Handle too short / low sentence count via Continuation Loop
+      let continuationAttempts = 0;
+      while (!validation.valid && (validation.tooShort || validation.lowSentenceCount) && continuationAttempts < 3) {
         retryUsed = true;
-        console.log(`Chapter too short (${validation.actualWordCount} words, ${validation.actualSentenceCount} sentences). Triggering continuation...`);
+        continuationAttempts++;
+        console.log(`Chapter too short (${validation.actualWordCount}/${validation.minWords} words, ${validation.actualSentenceCount}/${validation.sentenceRange.min} sentences). Continuation attempt ${continuationAttempts}...`);
+
         const continuationData = await getChapterFromAI(generatePrompt(null, chapterData.lines));
 
         // Append new lines
@@ -219,7 +227,7 @@ Continuity Context: ${previousSummaries.join(' ')}
         }
 
         validation = validateChapter(chapterData, wordsPerChapter, sentenceLevelStyle);
-        console.log(`Continuation result: ${validation.valid ? 'PASSED' : 'STILL FAILING'} (${validation.actualWordCount} words)`);
+        console.log(`Continuation attempt ${continuationAttempts} result: ${validation.valid ? 'PASSED' : 'STILL FAILING'} (${validation.actualWordCount} words)`);
       }
 
       // Handle other violations (formatting, length) via regular retry
@@ -236,7 +244,7 @@ Continuity Context: ${previousSummaries.join(' ')}
 
         chapterData = await getChapterFromAI(generatePrompt(correction));
         validation = validateChapter(chapterData, wordsPerChapter, sentenceLevelStyle);
-        console.log(`Final retry result for Ch ${chapterPlan.chapterNumber}: ${validation.valid ? 'PASSED' : 'FAILED'}`);
+        console.log(`Final validation result for Ch ${chapterPlan.chapterNumber}: ${validation.valid ? 'PASSED' : 'FAILED'} (${validation.actualWordCount} words)`);
       }
 
       chapterData.estimatedTargetWordCount = validation.actualWordCount;
@@ -274,24 +282,27 @@ Continuity Context: ${previousSummaries.join(' ')}
 /**
  * Audio Generation Endpoint
  */
+const VOICE_MAP = {
+  'French': { languageCode: 'fr-FR', name: 'fr-FR-Neural2-A' },
+  'Spanish': { languageCode: 'es-ES', name: 'es-ES-Neural2-A' },
+  'English': { languageCode: 'en-US', name: 'en-US-Neural2-D' },
+  'German': { languageCode: 'de-DE', name: 'de-DE-Neural2-F' },
+  'Japanese': { languageCode: 'ja-JP', name: 'ja-JP-Neural2-C' },
+};
+
 app.post('/api/generate-audio', async (req, res) => {
   const { ssml, segments, targetLanguage, baseLanguage, voiceName } = req.body;
 
   console.log('--- Audio Generation Request ---');
-  if (ssml) {
-    console.log('SSML provided, length:', ssml.length);
-  }
+
+  const getVoice = (langName) => VOICE_MAP[langName] || VOICE_MAP['English'];
 
   // Handle segments for bilingual/stitching (WAV output)
   if (segments && Array.isArray(segments)) {
-    const voiceMap = {
-      'French': { languageCode: 'fr-FR', name: 'fr-FR-Neural2-A' },
-      'Spanish': { languageCode: 'es-ES', name: 'es-ES-Neural2-A' },
-      'English': { languageCode: 'en-US', name: 'en-US-Neural2-D' },
-      'German': { languageCode: 'de-DE', name: 'de-DE-Neural2-F' },
-    };
+    const targetVoice = getVoice(targetLanguage);
+    const baseVoice = getVoice(baseLanguage);
 
-    const getVoice = (lang) => voiceMap[lang] || voiceMap['English'];
+    console.log(`Bilingual Mode: Target=${targetLanguage} (${targetVoice.name}), Base=${baseLanguage} (${baseVoice.name})`);
 
     try {
       const audioBuffers = [];
@@ -302,7 +313,7 @@ app.post('/api/generate-audio', async (req, res) => {
           continue;
         }
 
-        const voice = segment.lang === 'target' ? getVoice(targetLanguage) : getVoice(baseLanguage);
+        const voice = segment.lang === 'target' ? targetVoice : baseVoice;
         const request = {
           input: { text: segment.text },
           voice: voice,
@@ -310,7 +321,10 @@ app.post('/api/generate-audio', async (req, res) => {
         };
 
         const [response] = await ttsClient.synthesizeSpeech(request);
-        audioBuffers.push({ buffer: Buffer.from(response.audioContent), isSilence: false });
+        // Google Cloud TTS LINEAR16 returns a WAV file with a 44-byte header.
+        // We strip the header to get raw PCM data for clean concatenation.
+        const pcmData = Buffer.from(response.audioContent).slice(44);
+        audioBuffers.push({ buffer: pcmData, isSilence: false });
       }
 
       const finalWav = concatenateWavs(audioBuffers);
@@ -327,15 +341,10 @@ app.post('/api/generate-audio', async (req, res) => {
     return res.status(400).json({ error: 'No valid SSML was provided for audio generation.' });
   }
 
-  const voiceMap = {
-    'French': { languageCode: 'fr-FR', name: 'fr-FR-Neural2-A' },
-    'Spanish': { languageCode: 'es-ES', name: 'es-ES-Neural2-A' },
-    'English': { languageCode: 'en-US', name: 'en-US-Neural2-D' },
-    'German': { languageCode: 'de-DE', name: 'de-DE-Neural2-F' },
-  };
+  const targetVoice = getVoice(targetLanguage);
+  const voice = voiceName ? { name: voiceName, languageCode: voiceName.substring(0, 5) } : targetVoice;
 
-  const defaultVoice = voiceMap[targetLanguage] || voiceMap['English'];
-  const voice = voiceName ? { name: voiceName, languageCode: voiceName.substring(0, 5) } : defaultVoice;
+  console.log(`SSML Mode: Voice=${voice.name}, Target=${targetLanguage}, Length=${ssml.length}`);
 
   try {
     const request = {

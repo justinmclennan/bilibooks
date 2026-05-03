@@ -30,6 +30,11 @@ export const STORY_SYSTEM_PROMPT = `
 You are a language-learning story generator.
 Your job is to create a highly structured single chapter of a learning story for adult learners based on a provided plan.
 
+LANGUAGE MAPPING RULES:
+- The 'target' fields (target, targetFirstHalf, targetSecondHalf) MUST be written ONLY in {targetLanguage}.
+- The 'native' fields (native, nativeFirstHalf, nativeSecondHalf) MUST be written ONLY in {baseLanguage}.
+- NEVER swap the languages. The learner is studying {targetLanguage} using {baseLanguage} as their base.
+
 WORDS PER CHAPTER TARGETS:
 - The 'wordsPerChapter' value is a strict target for the TARGET LANGUAGE story words (not counting translations, repeated lines, or metadata).
 - If 'wordsPerChapter' is 150: Target 125–175 target-language words.
@@ -70,7 +75,9 @@ LANGUAGE RULES:
 CONTINUATION RULES:
 - If you are asked to 'CONTINUE' a chapter, do NOT repeat the story from the beginning.
 - Start exactly where the previous lines ended and add the requested number of new sentences.
+- Do not summarize. Continue the scene with more concrete actions, thoughts, dialogue, sensory details, and consequences.
 - Ensure the plot remains coherent and follows the 'storyPurpose'.
+- Use the chapter's newFocusWords and reviewWords naturally throughout.
 
 OUTPUT FORMAT (JSON ONLY):
 {
