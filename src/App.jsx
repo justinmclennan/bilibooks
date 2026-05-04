@@ -5,8 +5,12 @@ import ProgressIndicator from './components/ProgressIndicator';
 import Step1Setup from './components/Step1Setup';
 import Step2Builder from './components/Step2Builder';
 import Step3Results from './components/Step3Results';
+import Library from './components/Library';
+import LibraryDetail from './components/LibraryDetail';
 
 function App() {
+  const [activeView, setActiveTab] = useState('wizard'); // 'wizard' or 'library'
+  const [selectedLibraryStoryId, setSelectedLibraryStoryId] = useState(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
@@ -73,12 +77,29 @@ function App() {
     }
   };
 
+  const goToLibrary = () => {
+    setActiveTab('library');
+    setSelectedLibraryStoryId(null);
+  };
+
+  const goToCreate = () => {
+    setActiveTab('wizard');
+  };
+
   return (
     <div className="min-h-screen flex flex-col font-body-md text-on-background bg-background">
-      <TopAppBar />
+      <TopAppBar onNavigate={setActiveTab} activeView={activeView} />
 
       <main className="flex-grow flex flex-col items-center py-xl px-margin max-w-7xl mx-auto w-full">
-        {currentStep === 1 && (
+        {activeView === 'library' && !selectedLibraryStoryId && (
+          <Library onViewDetails={setSelectedLibraryStoryId} />
+        )}
+
+        {activeView === 'library' && selectedLibraryStoryId && (
+          <LibraryDetail storyId={selectedLibraryStoryId} onBack={() => setSelectedLibraryStoryId(null)} />
+        )}
+
+        {activeView === 'wizard' && currentStep === 1 && (
           <div className="max-w-4xl w-full grid md:grid-cols-12 gap-xl items-start my-auto">
             {/* Left Side: Visual/Context */}
             <div className="md:col-span-5 hidden md:block space-y-lg">
@@ -104,7 +125,7 @@ function App() {
           </div>
         )}
 
-        {currentStep === 2 && (
+        {activeView === 'wizard' && currentStep === 2 && (
           <div className="max-w-5xl w-full">
             <div className="mb-xl text-center md:text-left">
               <div className="flex items-center justify-center md:justify-start gap-4 mb-4">
@@ -159,7 +180,7 @@ function App() {
           </div>
         )}
 
-        {currentStep === 3 && (
+        {activeView === 'wizard' && currentStep === 3 && (
           <div className="w-full">
             <div className="mb-xl max-w-3xl">
               <div className="flex justify-between items-end mb-sm">
@@ -198,7 +219,7 @@ function App() {
         )}
       </main>
 
-      <BottomNavBar />
+      <BottomNavBar onNavigate={setActiveTab} activeView={activeView} />
     </div>
   );
 }

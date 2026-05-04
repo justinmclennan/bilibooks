@@ -3,6 +3,9 @@ import { generateSsml, generateReadable, getLineParts, calculatePauseSeconds } f
 
 const Step3Results = ({ formData, storyData, resetApp }) => {
   const [activeTab, setActiveTab] = useState('summary');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [generatedAudio, setGeneratedAudio] = useState({}); // { id: { audioContent, format } }
 
   const chapters = useMemo(() => {
     if (!storyData) return [];
@@ -35,6 +38,37 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
     alert('Copied to clipboard!');
+  };
+
+  const handleSaveToLibrary = async () => {
+    setIsSaving(true);
+    try {
+      const audioFilesArray = Object.entries(generatedAudio).map(([id, data]) => ({
+        id,
+        audioContent: data.audioContent,
+        format: data.format
+      }));
+
+      const response = await fetch('/api/library/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storyData,
+          formData,
+          contentVersions,
+          audioFiles: audioFilesArray
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to save to library');
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      console.error(err);
+      alert('Error saving to library: ' + err.message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const downloadFile = (text, filename, type) => {
@@ -200,6 +234,7 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
                   formData={formData}
                   onCopy={copyToClipboard}
                   onDownload={downloadFile}
+                  onAudioGenerated={(audioData) => setGeneratedAudio(prev => ({ ...prev, [key]: audioData }))}
                 />
               ))}
             </div>
@@ -212,6 +247,24 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
         <div className="bg-white p-lg rounded-xl border border-outline-variant shadow-sm sticky top-4">
           <h3 className="font-headline-sm text-headline-sm mb-lg">Actions</h3>
           <div className="space-y-md">
+             <button
+              onClick={() => handleSaveToLibrary()}
+              disabled={isSaving || saveSuccess}
+              className={`w-full flex items-center justify-between p-md rounded-xl border transition-all ${
+                saveSuccess
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                  : 'bg-surface-container-low border-transparent hover:border-outline-variant text-on-surface'
+              }`}
+            >
+              <div className="flex items-center gap-md">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${saveSuccess ? 'bg-emerald-100 text-emerald-600' : 'bg-primary/10 text-primary'}`}>
+                  <span className="material-symbols-outlined">{saveSuccess ? 'check_circle' : 'bookmark_add'}</span>
+                </div>
+                <p className="font-body-md font-semibold">{saveSuccess ? 'Saved to Library' : 'Save to Library'}</p>
+              </div>
+              {isSaving && <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>}
+            </button>
+
              <button
               onClick={() => downloadFile(JSON.stringify(storyData, null, 2), 'story_data.json', 'application/json')}
               className="w-full flex items-center justify-between p-md bg-surface-container-low rounded-xl border border-transparent hover:border-outline-variant transition-all"
@@ -240,7 +293,7 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
   );
 };
 
-const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, formData, onCopy, onDownload }) => {
+const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, formData, onCopy, onDownload, onAudioGenerated }) => {
   const [subTab, setSubTab] = useState('preview');
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [audioUrl, setAudioUrl] = useState(null);
@@ -302,6 +355,10 @@ const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, fo
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
       setAudioFormat(data.format || 'wav');
+
+      if (onAudioGenerated) {
+        onAudioGenerated({ audioContent: data.audioContent, format: data.format || 'wav' });
+      }
     } catch (err) {
       console.error(err);
       setAudioError(err.message);

@@ -2,11 +2,17 @@ import express from 'express';
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import textToSpeech from '@google-cloud/text-to-speech';
 import { STORY_SYSTEM_PROMPT, PLANNING_SYSTEM_PROMPT } from '../src/prompts/storySpec.js';
 import { concatenateWavs, createSilenceBuffer } from './audioUtils.js';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -414,6 +420,139 @@ app.post('/api/generate-audio', async (req, res) => {
   } catch (error) {
     console.error('Google TTS Error:', error);
     res.status(500).json({ error: 'Audio generation failed.' });
+  }
+});
+
+/**
+ * Library Routes
+ */
+const LIBRARY_DIR = path.join(__dirname, '..', 'saved-library');
+
+// Ensure library dir exists
+if (!fs.existsSync(LIBRARY_DIR)) {
+  fs.mkdirSync(LIBRARY_DIR, { recursive: true });
+}
+
+app.get('/api/library', async (req, res) => {
+  try {
+    const folders = fs.readdirSync(LIBRARY_DIR);
+    const library = folders
+      .map(folder => {
+        const metadataPath = path.join(LIBRARY_DIR, folder, 'metadata.json');
+        if (fs.existsSync(metadataPath)) {
+          return JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+        }
+        return null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    res.json(library);
+  } catch (error) {
+    console.error('Error fetching library:', error);
+    res.status(500).json({ error: 'Failed to fetch library' });
+  }
+});
+
+app.get('/api/library/:id', async (req, res) => {
+  const { id } = req.params;
+  const metadataPath = path.join(LIBRARY_DIR, id, 'metadata.json');
+
+  if (!fs.existsSync(metadataPath)) {
+    return res.status(404).json({ error: 'Story not found' });
+  }
+
+  try {
+    const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+    res.json(metadata);
+  } catch (error) {
+    console.error('Error fetching story details:', error);
+    res.status(500).json({ error: 'Failed to fetch story details' });
+  }
+});
+
+app.get('/api/library/:id/file/:filename', async (req, res) => {
+  const { id, filename } = req.params;
+  const filePath = path.join(LIBRARY_DIR, id, filename);
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+
+  res.sendFile(filePath);
+});
+
+app.post('/api/library/save', async (req, res) => {
+  const {
+    storyData,
+    formData,
+    contentVersions,
+    audioFiles // Array of { id, audioContent, format }
+  } = req.body;
+
+  if (!storyData || !formData) {
+    return res.status(400).json({ error: 'Missing required data' });
+  }
+
+  try {
+    const safeTitle = (storyData.title || 'untitled')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '-')
+      .substring(0, 30);
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const folderName = `${safeTitle}-${timestamp}`;
+    const folderPath = path.join(LIBRARY_DIR, folderName);
+
+    fs.mkdirSync(folderPath, { recursive: true });
+
+    // Save Metadata
+    const metadata = {
+      id: folderName,
+      title: storyData.title,
+      baseLanguage: formData.baseLanguage,
+      targetLanguage: formData.targetLanguage,
+      level: formData.level,
+      chapterCount: formData.chapterCount,
+      wordsPerChapter: formData.wordsPerChapter,
+      sentenceLevelStyle: formData.sentenceLevelStyle,
+      storyIdea: formData.storyIdea,
+      vocabulary: storyData.vocabularyList || [],
+      storyArc: storyData.storyArc,
+      chapters: storyData.chapters || [],
+      createdAt: new Date().toISOString(),
+      audioFiles: []
+    };
+
+    // Save Scripts and SSML
+    if (contentVersions) {
+      Object.entries(contentVersions).forEach(([key, version]) => {
+        if (version.readable) {
+          fs.writeFileSync(path.join(folderPath, `${key}.txt`), version.readable);
+        }
+        if (version.ssml) {
+          fs.writeFileSync(path.join(folderPath, `${key}.ssml`), version.ssml);
+        }
+      });
+    }
+
+    // Save Audio Files
+    if (audioFiles && Array.isArray(audioFiles)) {
+      audioFiles.forEach(file => {
+        const filename = `${file.id}.${file.format}`;
+        const buffer = Buffer.from(file.audioContent, 'base64');
+        fs.writeFileSync(path.join(folderPath, filename), buffer);
+        metadata.audioFiles.push({ id: file.id, filename, format: file.format });
+      });
+    }
+
+    // Write final metadata.json
+    fs.writeFileSync(path.join(folderPath, 'metadata.json'), JSON.stringify(metadata, null, 2));
+
+    res.json({ success: true, id: folderName });
+  } catch (error) {
+    console.error('Error saving to library:', error);
+    res.status(500).json({ error: 'Failed to save to library' });
   }
 });
 
