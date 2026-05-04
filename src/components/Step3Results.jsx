@@ -234,6 +234,7 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
                   formData={formData}
                   onCopy={copyToClipboard}
                   onDownload={downloadFile}
+                  libraryItemId={libraryItemId}
                   onAudioGenerated={(audioData) => setGeneratedAudio(prev => ({ ...prev, [key]: audioData }))}
                 />
               ))}
@@ -249,18 +250,18 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
           <div className="space-y-md">
              <button
               onClick={() => handleSaveToLibrary()}
-              disabled={isSaving || saveSuccess}
+              disabled={isSaving || saveSuccess || !!libraryItemId}
               className={`w-full flex items-center justify-between p-md rounded-xl border transition-all ${
-                saveSuccess
+                (saveSuccess || libraryItemId)
                   ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
                   : 'bg-surface-container-low border-transparent hover:border-outline-variant text-on-surface'
               }`}
             >
               <div className="flex items-center gap-md">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${saveSuccess ? 'bg-emerald-100 text-emerald-600' : 'bg-primary/10 text-primary'}`}>
-                  <span className="material-symbols-outlined">{saveSuccess ? 'check_circle' : 'bookmark_add'}</span>
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${(saveSuccess || libraryItemId) ? 'bg-emerald-100 text-emerald-600' : 'bg-primary/10 text-primary'}`}>
+                  <span className="material-symbols-outlined">{(saveSuccess || libraryItemId) ? 'check_circle' : 'bookmark_add'}</span>
                 </div>
-                <p className="font-body-md font-semibold">{saveSuccess ? 'Saved to Library' : 'Save to Library'}</p>
+                <p className="font-body-md font-semibold">{(saveSuccess || libraryItemId) ? 'Saved to Library' : 'Save to Library'}</p>
               </div>
               {isSaving && <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>}
             </button>
@@ -293,9 +294,10 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
   );
 };
 
-const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, formData, onCopy, onDownload, onAudioGenerated }) => {
+const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, formData, onCopy, onDownload, onAudioGenerated, libraryItemId }) => {
   const [subTab, setSubTab] = useState('preview');
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+  const [isSavedToLibrary, setIsSavedToLibrary] = useState(false);
   const [audioUrl, setAudioUrl] = useState(null);
   const [audioError, setAudioError] = useState(null);
   const [audioFormat, setAudioFormat] = useState('wav');
@@ -323,13 +325,24 @@ const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, fo
             segments.push({ type: 'pause', duration: 2.0 });
           }
         });
-        body = { segments, targetLanguage: formData.targetLanguage, baseLanguage: formData.baseLanguage };
+        body = {
+          segments,
+          targetLanguage: formData.targetLanguage,
+          baseLanguage: formData.baseLanguage,
+          libraryItemId,
+          scriptType: id
+        };
       } else {
         // Send SSML for target-only scripts
         if (!ssml || !ssml.includes('<speak>')) {
           throw new Error('No valid SSML available for this script yet.');
         }
-        body = { ssml, targetLanguage: formData.targetLanguage };
+        body = {
+          ssml,
+          targetLanguage: formData.targetLanguage,
+          libraryItemId,
+          scriptType: id
+        };
       }
 
       const response = await fetch('/api/generate-audio', {
@@ -355,6 +368,12 @@ const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, fo
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
       setAudioFormat(data.format || 'wav');
+
+      if (data.savedToLibrary) {
+        setIsSavedToLibrary(true);
+      } else if (libraryItemId) {
+        setAudioError('Audio generated, but could not save to Library.');
+      }
 
       if (onAudioGenerated) {
         onAudioGenerated({ audioContent: data.audioContent, format: data.format || 'wav' });
@@ -450,7 +469,15 @@ const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, fo
 
           {audioUrl && (
             <div className="flex flex-col sm:flex-row items-center gap-md w-full">
-              <audio controls src={audioUrl} className="h-10 flex-grow" />
+              <div className="flex flex-col flex-grow gap-1">
+                <audio controls src={audioUrl} className="h-10 w-full" />
+                {isSavedToLibrary && (
+                  <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 ml-2">
+                    <span className="material-symbols-outlined text-xs">check_circle</span>
+                    MP3 saved to Library
+                  </span>
+                )}
+              </div>
               <button
                 onClick={downloadAudio}
                 className="flex items-center gap-2 px-4 py-2 border-2 border-secondary text-secondary rounded-lg font-label-caps hover:bg-secondary/5 transition-all"

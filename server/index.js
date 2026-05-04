@@ -327,13 +327,15 @@ Continuity Context: ${previousSummaries.join(' ')}
     const uniqueVocab = Array.from(new Set(combinedVocabList.map(v => v.target)))
       .map(target => combinedVocabList.find(v => v.target === target));
 
-    res.json({
+    const finalStoryData = {
       title: plan.title,
       storyArc: plan.storyArc,
       chapters: chapters,
       vocabularyList: uniqueVocab,
       allPassed: chapters.every(c => c.validationPassed)
-    });
+    };
+
+    res.json(finalStoryData);
 
   } catch (error) {
     console.error('Error generating story:', error);
@@ -353,9 +355,21 @@ const VOICE_MAP = {
 };
 
 app.post('/api/generate-audio', async (req, res) => {
-  const { ssml, segments, targetLanguage, baseLanguage, voiceName } = req.body;
+  const {
+    ssml,
+    segments,
+    targetLanguage,
+    baseLanguage,
+    voiceName,
+    libraryItemId,
+    scriptType,
+    chapterNumber
+  } = req.body;
 
   console.log('--- Audio Generation Request ---');
+  if (libraryItemId) {
+    console.log(`Library Item ID: ${libraryItemId}, Script Type: ${scriptType}`);
+  }
 
   const getVoice = (langName) => VOICE_MAP[langName] || VOICE_MAP['English'];
 
@@ -390,7 +404,57 @@ app.post('/api/generate-audio', async (req, res) => {
       }
 
       const finalWav = concatenateWavs(audioBuffers);
-      res.json({ audioContent: finalWav.toString('base64'), format: 'wav' });
+      const audioContentBase64 = finalWav.toString('base64');
+
+      let savedToLibrary = false;
+      let filename = null;
+
+      if (libraryItemId) {
+        try {
+          const folderPath = path.join(LIBRARY_DIR, libraryItemId);
+          if (fs.existsSync(folderPath)) {
+            const safeScriptType = (scriptType || 'interlinear').toLowerCase().replace(/[^a-z0-9]/g, '-');
+            const chPrefix = chapterNumber ? `chapter-${chapterNumber}-` : '';
+            filename = `${chPrefix}${safeScriptType}.wav`;
+            const filePath = path.join(folderPath, filename);
+
+            fs.writeFileSync(filePath, finalWav);
+            console.log(`Saved audio to library: ${filePath}`);
+
+            // Update metadata
+            const metadataPath = path.join(folderPath, 'metadata.json');
+            if (fs.existsSync(metadataPath)) {
+              const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+              metadata.audioFiles = metadata.audioFiles || [];
+
+              // Remove existing entry for same file if exists
+              metadata.audioFiles = metadata.audioFiles.filter(f => f.filename !== filename);
+
+              metadata.audioFiles.push({
+                id: scriptType || 'interlinear',
+                chapterNumber: chapterNumber || null,
+                scriptType: scriptType || 'interlinear',
+                filename: filename,
+                format: 'wav',
+                createdAt: new Date().toISOString()
+              });
+
+              fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+              savedToLibrary = true;
+              console.log('Updated metadata.json with new audio reference.');
+            }
+          }
+        } catch (saveErr) {
+          console.error('Failed to save audio to library folder:', saveErr);
+        }
+      }
+
+      res.json({
+        audioContent: audioContentBase64,
+        format: 'wav',
+        savedToLibrary,
+        filename
+      });
       return;
     } catch (error) {
        console.error('Bilingual Audio Error:', error);
@@ -416,7 +480,57 @@ app.post('/api/generate-audio', async (req, res) => {
     };
 
     const [response] = await ttsClient.synthesizeSpeech(request);
-    res.json({ audioContent: response.audioContent.toString('base64'), format: 'mp3' });
+    const audioContentBase64 = response.audioContent.toString('base64');
+
+    let savedToLibrary = false;
+    let filename = null;
+
+    if (libraryItemId) {
+      try {
+        const folderPath = path.join(LIBRARY_DIR, libraryItemId);
+        if (fs.existsSync(folderPath)) {
+          const safeScriptType = (scriptType || 'target-only').toLowerCase().replace(/[^a-z0-9]/g, '-');
+          const chPrefix = chapterNumber ? `chapter-${chapterNumber}-` : '';
+          filename = `${chPrefix}${safeScriptType}.mp3`;
+          const filePath = path.join(folderPath, filename);
+
+          fs.writeFileSync(filePath, response.audioContent);
+          console.log(`Saved audio to library: ${filePath}`);
+
+          // Update metadata
+          const metadataPath = path.join(folderPath, 'metadata.json');
+          if (fs.existsSync(metadataPath)) {
+            const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+            metadata.audioFiles = metadata.audioFiles || [];
+
+            // Remove existing entry for same file if exists
+            metadata.audioFiles = metadata.audioFiles.filter(f => f.filename !== filename);
+
+            metadata.audioFiles.push({
+              id: scriptType || 'target-only',
+              chapterNumber: chapterNumber || null,
+              scriptType: scriptType || 'target-only',
+              filename: filename,
+              format: 'mp3',
+              createdAt: new Date().toISOString()
+            });
+
+            fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+            savedToLibrary = true;
+            console.log('Updated metadata.json with new audio reference.');
+          }
+        }
+      } catch (saveErr) {
+        console.error('Failed to save audio to library folder:', saveErr);
+      }
+    }
+
+    res.json({
+      audioContent: audioContentBase64,
+      format: 'mp3',
+      savedToLibrary,
+      filename
+    });
   } catch (error) {
     console.error('Google TTS Error:', error);
     res.status(500).json({ error: 'Audio generation failed.' });

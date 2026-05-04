@@ -11,6 +11,7 @@ import LibraryDetail from './components/LibraryDetail';
 function App() {
   const [activeView, setActiveTab] = useState('wizard'); // 'wizard' or 'library'
   const [selectedLibraryStoryId, setSelectedLibraryStoryId] = useState(null);
+  const [libraryItemId, setLibraryItemId] = useState(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
@@ -36,6 +37,7 @@ function App() {
   const resetApp = () => {
     setCurrentStep(1);
     setStoryData(null);
+    setLibraryItemId(null);
     setError(null);
     setFormData({
       baseLanguage: 'English',
@@ -66,8 +68,24 @@ function App() {
         throw new Error('Failed to generate story');
       }
 
-      const data = await response.json();
-      setStoryData(data);
+      const story = await response.json();
+      setStoryData(story);
+
+      // Auto-save to library
+      try {
+        const saveResponse = await fetch('/api/library/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ storyData: story, formData }),
+        });
+        const saveResult = await saveResponse.json();
+        if (saveResult.success) {
+          setLibraryItemId(saveResult.id);
+        }
+      } catch (saveErr) {
+        console.error('Auto-save failed:', saveErr);
+      }
+
       nextStep();
     } catch (err) {
       console.error('Error:', err);
@@ -214,7 +232,12 @@ function App() {
               )}
             </div>
 
-            <Step3Results formData={formData} storyData={storyData} resetApp={resetApp} />
+            <Step3Results
+              formData={formData}
+              storyData={storyData}
+              resetApp={resetApp}
+              libraryItemId={libraryItemId}
+            />
           </div>
         )}
       </main>
