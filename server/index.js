@@ -47,8 +47,8 @@ function calculateGenerationTargets(wordsPerChapter, sentenceLevelStyle) {
   const config = styleConfig[sentenceLevelStyle] || styleConfig['a1'];
 
   const targetSentenceCount = Math.round(wordsPerChapter / config.avg);
-  const minSentenceCount = Math.floor(minChapterWords / config.max);
-  const maxSentenceCount = Math.ceil(maxChapterWords / config.min);
+  const minSentenceCount = Math.max(1, Math.floor(targetSentenceCount * 0.9));
+  const maxSentenceCount = Math.ceil(targetSentenceCount * 1.1);
 
   return {
     minChapterWords,
@@ -88,6 +88,7 @@ function validateChapter(chapterData, targets, sentenceLevelStyle) {
 
   let lineViolations = [];
   let splitViolations = [];
+  let sentencesUnderMinCount = 0;
 
   if (!chapterData.lines) {
     return {
@@ -95,12 +96,16 @@ function validateChapter(chapterData, targets, sentenceLevelStyle) {
       reasons: ["No lines generated"],
       actualWordCount: 0,
       actualSentenceCount: 0,
+      sentencesUnderMinCount: 0,
       targets
     };
   }
 
   chapterData.lines.forEach((line, idx) => {
     const fullCount = (line.target || "").split(/\s+/).filter(w => w.length > 0).length;
+    if (fullCount < targets.minSentenceWords) {
+      sentencesUnderMinCount++;
+    }
     if (fullCount < targets.minSentenceWords || fullCount > targets.maxSentenceWords) {
       lineViolations.push(`Line ${idx + 1} has ${fullCount} words (Expected ${targets.minSentenceWords}-${targets.maxSentenceWords})`);
     }
@@ -138,6 +143,7 @@ function validateChapter(chapterData, targets, sentenceLevelStyle) {
     actualWordCount,
     actualSentenceCount,
     averageSentenceLength: actualSentenceCount > 0 ? (actualWordCount / actualSentenceCount).toFixed(1) : 0,
+    sentencesUnderMinCount,
     lineViolations,
     splitViolations,
     targets
@@ -246,14 +252,16 @@ Continuity Context: ${previousSummaries.join(' ')}
         console.log(`Actual target word count: ${validation.actualWordCount}`);
         console.log(`Actual sentence count: ${validation.actualSentenceCount}`);
         console.log(`Average target words per sentence: ${validation.averageSentenceLength}`);
+        console.log(`Sentences under min words: ${validation.sentencesUnderMinCount}`);
         console.log(`Sentence length violations: ${validation.lineViolations.length}`);
 
         let correction = "";
         if (validation.tooShort && !validation.tooFewSentences) {
           console.log(`Repair Mode A: Too few target words, sentence count acceptable: lengthen existing sentences.`);
-          correction = `The chapter is too short (${validation.actualWordCount} words) but has enough sentences (${validation.actualSentenceCount}).
-          REPAIR: Lengthen the existing ${targetLanguage} sentences towards ${targets.minSentenceWords}-${targets.maxSentenceWords} words each.
-          Add concrete detail, emotion, sensory info, or dialogue. DO NOT add many new sentences. Keep each full sentence inside the ${targets.minSentenceWords}-${targets.maxSentenceWords} word range.`;
+          correction = `The sentence count is already correct (${validation.actualSentenceCount}), but the target-language sentences are too short.
+          REPAIR: Revise the existing ${targetLanguage} sentences so each one has ${targets.minSentenceWords}-${targets.maxSentenceWords} words.
+          Do not add many new sentences. Preserve the same story events, chapter purpose, vocabulary plan, and order.
+          Add concrete detail, emotion, action, sensory detail, consequence, or a connector to each short sentence.`;
         }
         else if (validation.tooShort && validation.tooFewSentences) {
           console.log(`Repair Mode B: Too few target words and too few sentences: add sentences.`);
@@ -293,6 +301,7 @@ Continuity Context: ${previousSummaries.join(' ')}
       console.log(`Final validation result for Ch ${chapterPlan.chapterNumber}: ${validation.valid ? 'PASSED' : 'FAILED'} (${validation.actualWordCount} words, ${validation.actualSentenceCount} sentences)`);
       console.log(`Final word count: ${validation.actualWordCount}`);
       console.log(`Final sentence count: ${validation.actualSentenceCount}`);
+      console.log(`Final average words per sentence: ${validation.averageSentenceLength}`);
 
       chapterData.estimatedTargetWordCount = validation.actualWordCount;
       chapterData.actualSentenceCount = validation.actualSentenceCount;
