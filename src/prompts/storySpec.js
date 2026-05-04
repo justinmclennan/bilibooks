@@ -43,7 +43,7 @@ WORDS PER CHAPTER TARGETS:
 - You will be given a specific 'targetSentenceCount' to reach. YOU MUST MEET THIS COUNT.
 
 SENTENCE LEVEL STYLE (STRICT TARGETS):
-Follow these rules for EVERY line based on 'sentenceLevelStyle':
+Follow these rules for EVERY full target-language sentence based on 'sentenceLevelStyle':
 
 - 'pre-a1':
   - Each full target-language sentence MUST be 3–5 words.
@@ -58,13 +58,13 @@ Follow these rules for EVERY line based on 'sentenceLevelStyle':
 - 'a2':
   - Each full target-language sentence MUST be 8–13 words.
   - MUST include one connector (because, but, so, when, while, if, before, after).
-  - MUST be split into two meaningful halves, usually around the connector.
+  - MUST be split into two meaningful halves for display/audio practice. The split halves should be meaningful and non-empty.
   - FORMAT: Provide 'target', 'native', 'targetFirstHalf', 'targetSecondHalf', 'nativeFirstHalf', and 'nativeSecondHalf'.
 
 - 'b1':
   - Each full target-language sentence MUST be 14–20 words.
-  - MUST include one connector (because, but, so, although, while, when, after, before, if, even though, until, since, as, unless, however, therefore).
-  - MUST be split into two meaningful halves, usually around the connector.
+  - MUST include one connector, subordinate clause, or clear complex structure.
+  - MUST be split into two meaningful halves for display/audio practice. The split halves should be meaningful and non-empty.
   - FORMAT: Provide 'target', 'native', 'targetFirstHalf', 'targetSecondHalf', 'nativeFirstHalf', and 'nativeSecondHalf'.
 
 LANGUAGE RULES:
