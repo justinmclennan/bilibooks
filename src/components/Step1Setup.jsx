@@ -49,9 +49,9 @@ const Step1Setup = ({ formData, updateFormData, nextStep }) => {
             <label className="text-label-caps font-label-caps text-on-surface-variant uppercase">Proficiency Level</label>
             <span className="text-[10px] text-on-tertiary-fixed-variant bg-tertiary-fixed px-2 py-0.5 rounded-full uppercase tracking-widest font-bold">Recommended</span>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-md">
-            {['Pre-A1', 'A1', 'A2', 'B1', 'B2'].map((level) => {
-              const labels = { 'Pre-A1': 'Beginner', A1: 'Novice', A2: 'Basic', B1: 'Intermediate', B2: 'Advanced' };
+          <div className="grid grid-cols-4 gap-md">
+            {['A1', 'A2', 'B1', 'B2'].map((level) => {
+              const labels = { A1: 'Novice', A2: 'Basic', B1: 'Intermediate', B2: 'Advanced' };
               const isChecked = formData.level === level;
               return (
                 <label key={level} className="cursor-pointer group">

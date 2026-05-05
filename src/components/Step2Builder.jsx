@@ -1,31 +1,25 @@
 
 const Step2Builder = ({ formData, updateFormData, nextStep, prevStep, isGenerating }) => {
-  const sentenceLevelStyles = [
-    { id: 'pre-a1', label: 'Pre-A1', sub: '3–5 words' },
-    { id: 'a1', label: 'A1', sub: '5–7 words' },
-    { id: 'a2', label: 'A2', sub: '8–13 words' },
-    { id: 'b1', label: 'B1', sub: '14–20 words' },
-  ];
-
-  const planningModes = [
-    { id: 'single', label: 'Single Story', sub: 'Simple' },
-    { id: 'multi', label: 'Vocab Book', sub: 'Multi-Chapter' },
+  const lengths = [
+    { id: 'single', icon: 'description', label: 'Single story', sub: '~ 2 minutes' },
+    { id: 'multi', icon: 'auto_stories', label: 'Multi-chapter', sub: '~ 2 mins/chapter' },
+    { id: 'hero', icon: 'history_edu', label: "Hero's Journey", sub: '12 Chapters' },
   ];
 
   return (
     <div className="lg:col-span-8 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-[0_4px_20px_-4px_rgba(37,99,235,0.06)] p-lg md:p-xl">
       <form className="space-y-xl">
-        {/* Planning Mode */}
+        {/* Story Length Selector */}
         <div>
-          <label className="block font-headline-sm text-headline-sm text-on-surface mb-4">Planning Mode</label>
-          <div className="grid grid-cols-2 gap-4">
-            {planningModes.map((mode) => {
-              const isActive = formData.planningMode === mode.id;
+          <label className="block font-headline-sm text-headline-sm text-on-surface mb-4">How long should the story be?</label>
+          <div className="grid grid-cols-3 gap-4">
+            {lengths.map((len) => {
+              const isActive = formData.storyLength === len.id;
               return (
                 <button
-                  key={mode.id}
+                  key={len.id}
                   type="button"
-                  onClick={() => updateFormData({ planningMode: mode.id })}
+                  onClick={() => updateFormData({ storyLength: len.id })}
                   disabled={isGenerating}
                   className={`flex flex-col items-center justify-center p-4 border-2 rounded-xl transition-all text-center ${
                     isActive
@@ -33,132 +27,17 @@ const Step2Builder = ({ formData, updateFormData, nextStep, prevStep, isGenerati
                       : 'border-outline-variant hover:border-primary-container'
                   } ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
+                  <span className={`material-symbols-outlined mb-2 ${isActive ? 'text-primary' : 'text-outline'}`}>
+                    {len.icon}
+                  </span>
                   <span className={`font-label-caps text-label-caps ${isActive ? 'text-primary' : 'text-on-surface'}`}>
-                    {mode.label}
+                    {len.label}
                   </span>
-                  <span className="text-[10px] text-on-surface-variant mt-1">{mode.sub}</span>
+                  <span className="text-[10px] text-on-surface-variant mt-1">{len.sub}</span>
                 </button>
               );
             })}
           </div>
-        </div>
-
-        {/* Multi-Chapter Controls */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-xl">
-          <div>
-            <label className="block font-headline-sm text-headline-sm text-on-surface mb-2">Number of Chapters</label>
-            <select
-              value={formData.chapterCount === 1 || formData.chapterCount === 2 || formData.chapterCount === 3 || formData.chapterCount === 4 || formData.chapterCount === 5 || formData.chapterCount === 10 ? formData.chapterCount : 'custom'}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === 'custom') {
-                   updateFormData({ chapterCount: 6 });
-                } else {
-                   updateFormData({ chapterCount: parseInt(val) });
-                }
-              }}
-              disabled={isGenerating}
-              className="w-full rounded-xl border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary bg-surface-container-low font-body-md p-3 text-on-surface transition-colors disabled:opacity-50"
-            >
-              <option value={1}>1 Chapter</option>
-              <option value={2}>2 Chapters</option>
-              <option value={3}>3 Chapters</option>
-              <option value={4}>4 Chapters</option>
-              <option value={5}>5 Chapters</option>
-              <option value={10}>10 Chapters</option>
-              <option value="custom">Custom</option>
-            </select>
-            {(formData.chapterCount !== 1 && formData.chapterCount !== 2 && formData.chapterCount !== 3 && formData.chapterCount !== 4 && formData.chapterCount !== 5 && formData.chapterCount !== 10) && (
-              <input
-                type="number"
-                min="1"
-                max="20"
-                value={formData.chapterCount}
-                onChange={(e) => updateFormData({ chapterCount: parseInt(e.target.value) || 1 })}
-                className="mt-2 w-full rounded-xl border-outline-variant bg-surface-container-low p-3"
-                placeholder="Enter count..."
-              />
-            )}
-          </div>
-
-          <div>
-            <label className="block font-headline-sm text-headline-sm text-on-surface mb-1">Words Per Chapter</label>
-            <p className="text-[11px] text-on-surface-variant mb-2">Controls the approximate length of each target-language chapter, not counting translations or repeated lines.</p>
-            <select
-              value={formData.wordsPerChapter === 150 || formData.wordsPerChapter === 300 || formData.wordsPerChapter === 450 ? formData.wordsPerChapter : 'custom'}
-              onChange={(e) => {
-                 const val = e.target.value;
-                 if (val === 'custom') {
-                   updateFormData({ wordsPerChapter: 200 });
-                 } else {
-                   updateFormData({ wordsPerChapter: parseInt(val) });
-                 }
-              }}
-              disabled={isGenerating}
-              className="w-full rounded-xl border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary bg-surface-container-low font-body-md p-3 text-on-surface transition-colors disabled:opacity-50"
-            >
-              <option value={150}>Short (~150 words)</option>
-              <option value={300}>Medium (~300 words)</option>
-              <option value={450}>Long (~450 words)</option>
-              <option value="custom">Custom</option>
-            </select>
-            {(formData.wordsPerChapter !== 150 && formData.wordsPerChapter !== 300 && formData.wordsPerChapter !== 450) && (
-               <input
-                 type="number"
-                 value={formData.wordsPerChapter}
-                 onChange={(e) => updateFormData({ wordsPerChapter: parseInt(e.target.value) || 100 })}
-                 className="mt-2 w-full rounded-xl border-outline-variant bg-surface-container-low p-3"
-                 placeholder="Enter word count..."
-               />
-            )}
-          </div>
-        </div>
-
-        <div>
-          <label className="block font-headline-sm text-headline-sm text-on-surface mb-1">Sentence Length / Level Style</label>
-          <p className="text-[11px] text-on-surface-variant mb-4">
-            Pre-A1 and A1 use one sentence per line. A2 and B1 use longer connected sentences split into two lines for audio practice.
-          </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {sentenceLevelStyles.map((style) => {
-              const isActive = formData.sentenceLevelStyle === style.id;
-              return (
-                <button
-                  key={style.id}
-                  type="button"
-                  onClick={() => updateFormData({ sentenceLevelStyle: style.id })}
-                  disabled={isGenerating}
-                  className={`flex flex-col items-center justify-center p-3 border-2 rounded-xl transition-all text-center ${
-                    isActive
-                      ? 'border-primary bg-primary-fixed/30'
-                      : 'border-outline-variant hover:border-primary-container'
-                  } ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <span className={`font-label-caps text-xs ${isActive ? 'text-primary' : 'text-on-surface'}`}>
-                    {style.label}
-                  </span>
-                  <span className="text-[10px] text-on-surface-variant mt-1">{style.sub}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <hr className="border-outline-variant" />
-
-        {/* Vocabulary to Review */}
-        <div>
-          <label className="block font-headline-sm text-headline-sm text-on-surface mb-2" htmlFor="vocabulary">Vocabulary Plan</label>
-          <p className="text-body-sm text-on-surface-variant mb-3">Paste your list (words separated by commas, newlines, or semicolons).</p>
-          <textarea
-            id="vocabulary"
-            value={formData.vocabulary}
-            onChange={(e) => updateFormData({ vocabulary: e.target.value })}
-            disabled={isGenerating}
-            className="w-full rounded-xl border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary bg-surface-container-low font-body-md p-4 text-on-surface placeholder:text-outline transition-colors disabled:opacity-50"
-            placeholder="gare, train, aller&#10;manger; boire&#10;vouloir"
-            rows="5"
-          ></textarea>
         </div>
 
         {/* Story Idea */}
@@ -173,6 +52,21 @@ const Step2Builder = ({ formData, updateFormData, nextStep, prevStep, isGenerati
             className="w-full rounded-xl border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary bg-surface-container-low font-body-md p-4 text-on-surface placeholder:text-outline transition-colors disabled:opacity-50"
             placeholder="Example: A cozy detective mystery set in a small Parisian bakery during a winter storm..."
             rows="4"
+          ></textarea>
+        </div>
+
+        {/* Vocabulary to Review */}
+        <div>
+          <label className="block font-headline-sm text-headline-sm text-on-surface mb-2" htmlFor="vocabulary">Vocabulary to Review</label>
+          <p className="text-body-sm text-on-surface-variant mb-3">Include specific words or grammar points you want to practice.</p>
+          <textarea
+            id="vocabulary"
+            value={formData.vocabulary}
+            onChange={(e) => updateFormData({ vocabulary: e.target.value })}
+            disabled={isGenerating}
+            className="w-full rounded-xl border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary bg-surface-container-low font-body-md p-4 text-on-surface placeholder:text-outline transition-colors disabled:opacity-50"
+            placeholder="List words separated by commas (e.g., subjunctive mood, kitchen utensils, polite requests)..."
+            rows="3"
           ></textarea>
         </div>
 
@@ -195,7 +89,7 @@ const Step2Builder = ({ formData, updateFormData, nextStep, prevStep, isGenerati
             {isGenerating ? (
               <>
                 <span className="animate-spin material-symbols-outlined text-sm">progress_activity</span>
-                Planning & Generating...
+                Generating...
               </>
             ) : (
               'Generate Story'

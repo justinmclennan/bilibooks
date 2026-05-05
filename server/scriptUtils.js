@@ -54,7 +54,6 @@ export const getLineParts = (line, options = {}) => {
         { text: line.target, mult: PAUSE_MULTIPLIERS.shadow, lang: 'target' },
       ];
     } else {
-      // For Pre-A1/A1 Shadow, repeating the target line twice for practice
       return [
         { text: line.target, mult: PAUSE_MULTIPLIERS.shadow, lang: 'target' },
         { text: line.target, mult: PAUSE_MULTIPLIERS.shadow, lang: 'target' },
@@ -63,11 +62,7 @@ export const getLineParts = (line, options = {}) => {
   }
 
   if (mode === 'story') {
-    const words = countWords(line.target);
-    let pause = 1.0;
-    if (words < 8) pause = 0.7;
-    else if (words < 15) pause = 0.85;
-    return [{ text: line.target, pause: pause.toFixed(2), lang: 'target' }];
+    return [{ text: line.target, pause: "1.00", lang: 'target' }];
   }
 
   // Interlinear Mode
@@ -107,11 +102,8 @@ export const getLineParts = (line, options = {}) => {
 export const generateSsml = (chapters, options = {}) => {
   const { mode = 'interlinear', targetFirst = true } = options;
   if (!chapters) return '';
-
   const normalizedChapters = Array.isArray(chapters) ? chapters : [chapters];
-
   let output = '<speak>\n';
-
   normalizedChapters.forEach((chapter, index) => {
     if (chapter.lines) {
       chapter.lines.forEach((line) => {
@@ -123,16 +115,13 @@ export const generateSsml = (chapters, options = {}) => {
             output += `  ${escaped}\n  ${formatBreak(pause)}\n`;
           }
         });
-        output += '\n'; // Add newline between 6-line blocks for readability
+        output += '\n';
       });
     }
-
-    // 2.0s pause between chapters
     if (index < normalizedChapters.length - 1) {
       output += `  ${formatBreak(2.0)}\n`;
     }
   });
-
   output += '</speak>';
   return output;
 };
@@ -140,10 +129,8 @@ export const generateSsml = (chapters, options = {}) => {
 export const generateReadable = (chapters, options = {}) => {
   const { mode = 'interlinear', targetFirst = true } = options;
   if (!chapters) return '';
-
   const normalizedChapters = Array.isArray(chapters) ? chapters : [chapters];
   let output = '';
-
   normalizedChapters.forEach((chapter) => {
     if (chapter.chapterTitle) {
       output += `### ${chapter.chapterTitle}\n\n`;
@@ -161,6 +148,5 @@ export const generateReadable = (chapters, options = {}) => {
     }
     output += '\n';
   });
-
   return output.trim();
 };
