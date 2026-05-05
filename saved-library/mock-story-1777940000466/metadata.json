@@ -1,0 +1,41 @@
+{
+  "id": "mock-story-1777940000466",
+  "title": "Mock Story",
+  "storyArc": "Arc",
+  "chapters": [
+    {
+      "chapterNumber": 1,
+      "chapterTitle": "Ch 1",
+      "lines": [
+        {
+          "target": "Gato",
+          "native": "Cat"
+        }
+      ],
+      "vocabularyList": [
+        {
+          "target": "gato",
+          "native": "cat"
+        }
+      ],
+      "validationWarnings": [],
+      "validationPassed": false
+    }
+  ],
+  "vocabularyList": [
+    {
+      "target": "gato",
+      "native": "cat"
+    }
+  ],
+  "allPassed": false,
+  "baseLanguage": "English",
+  "targetLanguage": "Spanish",
+  "level": "A1",
+  "chapterCount": 1,
+  "sentenceLevelStyle": "a1",
+  "wordsPerChapter": 150,
+  "storyIdea": "A cat in Paris",
+  "vocabulary": "",
+  "createdAt": "2026-05-05T00:13:20.467Z"
+}
