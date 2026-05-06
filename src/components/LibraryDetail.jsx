@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
+import { getStoryById } from '../utils/library';
+import ScriptCard from './ScriptCard';
 
 const LibraryDetail = ({ storyId, onBack }) => {
   const [story, setStory] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('summary');
+  const [storyViewMode, setStoryViewMode] = useState('target'); // 'target', 'native', 'bilingual'
 
   useEffect(() => {
     fetchStory();
@@ -13,9 +16,18 @@ const LibraryDetail = ({ storyId, onBack }) => {
   const fetchStory = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/library/${storyId}`);
-      if (!response.ok) throw new Error('Failed to load story details');
-      const data = await response.json();
+      // 1. Try localStorage first
+      let data = getStoryById(storyId);
+
+      // 2. Fallback to API if not found in localStorage (for backward compatibility with old backend saves)
+      if (!data) {
+        const response = await fetch(`/api/library/${storyId}`);
+        if (response.ok) {
+          data = await response.json();
+        }
+      }
+
+      if (!data) throw new Error('Story not found');
       setStory(data);
     } catch (err) {
       console.error(err);
@@ -23,6 +35,23 @@ const LibraryDetail = ({ storyId, onBack }) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    alert('Copied to clipboard!');
+  };
+
+  const downloadFile = (text, filename, type) => {
+    const blob = new Blob([text], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   if (isLoading) {
@@ -64,7 +93,7 @@ const LibraryDetail = ({ storyId, onBack }) => {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-lg">
         <div className="md:col-span-8 space-y-lg">
           <div className="flex border-b border-outline-variant overflow-x-auto no-scrollbar bg-surface-container-lowest rounded-t-xl">
-            {['summary', 'chapters', 'vocabulary', 'audio'].map((tab) => (
+            {['summary', 'chapters', 'vocabulary', 'scripts', 'audio'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -110,22 +139,40 @@ const LibraryDetail = ({ storyId, onBack }) => {
              )}
 
              {activeTab === 'chapters' && (
-               <div className="space-y-12 bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm animate-in slide-in-from-bottom-4">
-                 {story.chapters.map((chapter, cIdx) => (
-                   <div key={cIdx} className="space-y-6">
-                      <h4 className="font-headline-sm text-primary border-b border-outline-variant pb-2 flex justify-between items-end">
-                        <span>Chapter {chapter.chapterNumber}: {chapter.chapterTitle}</span>
-                        <span className="text-[10px] font-mono text-on-surface-variant italic mb-0.5">~{chapter.estimatedTargetWordCount} target words</span>
-                      </h4>
-                      <div className="space-y-8">
-                        {chapter.lines?.map((line, idx) => (
-                          <div key={idx} className="group">
-                            <p className="font-body-lg text-on-surface font-semibold group-hover:text-primary transition-colors">{line.target}</p>
-                          </div>
-                        ))}
-                      </div>
-                   </div>
-                 ))}
+               <div className="space-y-8 bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm animate-in slide-in-from-bottom-4">
+                 <div className="flex justify-end gap-2 mb-4">
+                    {['target', 'native', 'bilingual'].map(mode => (
+                      <button
+                        key={mode}
+                        onClick={() => setStoryViewMode(mode)}
+                        className={`px-3 py-1 text-[10px] font-bold rounded uppercase transition-all ${storyViewMode === mode ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface-variant hover:text-on-surface'}`}
+                      >
+                        {mode}
+                      </button>
+                    ))}
+                 </div>
+                 <div className="space-y-12">
+                   {story.chapters.map((chapter, cIdx) => (
+                     <div key={cIdx} className="space-y-6">
+                        <h4 className="font-headline-sm text-primary border-b border-outline-variant pb-2 flex justify-between items-end">
+                          <span>Chapter {chapter.chapterNumber}: {chapter.chapterTitle}</span>
+                          <span className="text-[10px] font-mono text-on-surface-variant italic mb-0.5">~{chapter.estimatedTargetWordCount} target words</span>
+                        </h4>
+                        <div className="space-y-8">
+                          {chapter.lines?.map((line, idx) => (
+                            <div key={idx} className="group space-y-1">
+                              {(storyViewMode === 'target' || storyViewMode === 'bilingual') && (
+                                <p className="font-body-lg text-on-surface font-semibold group-hover:text-primary transition-colors">{line.target}</p>
+                              )}
+                              {(storyViewMode === 'native' || storyViewMode === 'bilingual') && (
+                                <p className="font-body-md text-on-surface-variant italic">{line.native}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                     </div>
+                   ))}
+                 </div>
                </div>
              )}
 
@@ -143,6 +190,36 @@ const LibraryDetail = ({ storyId, onBack }) => {
                       </div>
                     ))}
                   </div>
+                </div>
+             )}
+
+             {activeTab === 'scripts' && (
+                <div className="space-y-lg animate-in slide-in-from-bottom-4 duration-300">
+                  {story.contentVersions ? (
+                    Object.entries(story.contentVersions).map(([key, data]) => (
+                      <ScriptCard
+                        key={key}
+                        id={key}
+                        label={data.label}
+                        ssml={data.ssml}
+                        readable={data.readable}
+                        mode={data.mode}
+                        targetFirst={data.targetFirst}
+                        chapters={story.chapters}
+                        formData={story.formData || {
+                          targetLanguage: story.targetLanguage,
+                          baseLanguage: story.baseLanguage
+                        }}
+                        onCopy={copyToClipboard}
+                        onDownload={downloadFile}
+                      />
+                    ))
+                  ) : (
+                    <div className="py-12 flex flex-col items-center justify-center bg-surface-container-lowest rounded-xl border border-dashed border-outline">
+                      <span className="material-symbols-outlined text-4xl text-outline mb-4">description</span>
+                      <p className="text-on-surface-variant font-headline-sm text-center px-lg">No reusable script data saved. Scripts were likely generated with an older version.</p>
+                    </div>
+                  )}
                 </div>
              )}
 

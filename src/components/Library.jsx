@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getLibrary } from '../utils/library';
 
 const Library = ({ onViewDetails }) => {
   const [stories, setStories] = useState([]);
@@ -12,9 +13,7 @@ const Library = ({ onViewDetails }) => {
   const fetchLibrary = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/library');
-      if (!response.ok) throw new Error('Failed to fetch library');
-      const data = await response.json();
+      const data = getLibrary();
       setStories(data);
     } catch (err) {
       console.error(err);
@@ -90,7 +89,7 @@ const Library = ({ onViewDetails }) => {
                   </div>
                   <div className="flex items-center gap-2 text-on-surface-variant">
                     <span className="material-symbols-outlined text-sm">layers</span>
-                    <span className="text-[11px] font-medium">{story.chapterCount} Chapters</span>
+                    <span className="text-[11px] font-medium">{story.chapterCount || story.chapters?.length || 0} Chapters</span>
                   </div>
                 </div>
               </div>
@@ -102,8 +101,8 @@ const Library = ({ onViewDetails }) => {
                   <span className="material-symbols-outlined text-sm">open_in_new</span>
                   Open Story
                 </button>
-                {story.audioFiles?.length > 0 && (
-                  <div className="px-3 bg-secondary/10 text-secondary rounded-lg flex items-center justify-center" title="Has Audio">
+                {(story.audioFiles?.length > 0 || story.contentVersions) && (
+                  <div className="px-3 bg-secondary/10 text-secondary rounded-lg flex items-center justify-center" title="Has Audio/Scripts">
                     <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>headphones</span>
                   </div>
                 )}
