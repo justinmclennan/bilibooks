@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getLibrary } from '../utils/library';
 
 const Library = ({ onViewDetails }) => {
   const [stories, setStories] = useState([]);
@@ -12,9 +13,7 @@ const Library = ({ onViewDetails }) => {
   const fetchLibrary = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/library');
-      if (!response.ok) throw new Error('Failed to fetch library');
-      const data = await response.json();
+      const data = await getLibrary();
       setStories(data);
     } catch (err) {
       console.error(err);
@@ -77,8 +76,13 @@ const Library = ({ onViewDetails }) => {
             <div key={story.id} className="glass-card hover:shadow-xl transition-all group flex flex-col">
               <div className="p-lg flex-grow">
                 <div className="flex justify-between items-start mb-4">
-                  <div className="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-[10px] font-bold uppercase tracking-wider">
-                    {story.targetLanguage}
+                  <div className="flex gap-2">
+                    <div className="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-[10px] font-bold uppercase tracking-wider">
+                      {story.targetLanguage}
+                    </div>
+                    <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${story.audioFiles?.length > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-surface-container text-on-surface-variant'}`}>
+                      {story.audioFiles?.length > 0 ? 'Audio Ready' : 'No Audio Yet'}
+                    </div>
                   </div>
                   <span className="text-[10px] text-on-surface-variant font-mono">{story.level}</span>
                 </div>
@@ -90,7 +94,7 @@ const Library = ({ onViewDetails }) => {
                   </div>
                   <div className="flex items-center gap-2 text-on-surface-variant">
                     <span className="material-symbols-outlined text-sm">layers</span>
-                    <span className="text-[11px] font-medium">{story.chapterCount} Chapters</span>
+                    <span className="text-[11px] font-medium">{story.chapterCount || story.chapters?.length || 0} Chapters</span>
                   </div>
                 </div>
               </div>
@@ -102,8 +106,8 @@ const Library = ({ onViewDetails }) => {
                   <span className="material-symbols-outlined text-sm">open_in_new</span>
                   Open Story
                 </button>
-                {story.audioFiles?.length > 0 && (
-                  <div className="px-3 bg-secondary/10 text-secondary rounded-lg flex items-center justify-center" title="Has Audio">
+                {(story.audioFiles?.length > 0 || story.contentVersions) && (
+                  <div className="px-3 bg-secondary/10 text-secondary rounded-lg flex items-center justify-center" title="Has Audio/Scripts">
                     <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>headphones</span>
                   </div>
                 )}

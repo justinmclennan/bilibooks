@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
+import { getStoryById } from '../utils/library';
+import ScriptCard from './ScriptCard';
 
 const LibraryDetail = ({ storyId, onBack }) => {
   const [story, setStory] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('summary');
+  const [storyViewMode, setStoryViewMode] = useState('target'); // 'target', 'native', 'bilingual'
 
   useEffect(() => {
     fetchStory();
@@ -13,9 +16,8 @@ const LibraryDetail = ({ storyId, onBack }) => {
   const fetchStory = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/library/${storyId}`);
-      if (!response.ok) throw new Error('Failed to load story details');
-      const data = await response.json();
+      const data = await getStoryById(storyId);
+      if (!data) throw new Error('Story not found');
       setStory(data);
     } catch (err) {
       console.error(err);
@@ -23,6 +25,23 @@ const LibraryDetail = ({ storyId, onBack }) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    alert('Copied to clipboard!');
+  };
+
+  const downloadFile = (text, filename, type) => {
+    const blob = new Blob([text], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   if (isLoading) {
@@ -110,22 +129,40 @@ const LibraryDetail = ({ storyId, onBack }) => {
              )}
 
              {activeTab === 'chapters' && (
-               <div className="space-y-12 bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm animate-in slide-in-from-bottom-4">
-                 {story.chapters.map((chapter, cIdx) => (
-                   <div key={cIdx} className="space-y-6">
-                      <h4 className="font-headline-sm text-primary border-b border-outline-variant pb-2 flex justify-between items-end">
-                        <span>Chapter {chapter.chapterNumber}: {chapter.chapterTitle}</span>
-                        <span className="text-[10px] font-mono text-on-surface-variant italic mb-0.5">~{chapter.estimatedTargetWordCount} target words</span>
-                      </h4>
-                      <div className="space-y-8">
-                        {chapter.lines?.map((line, idx) => (
-                          <div key={idx} className="group">
-                            <p className="font-body-lg text-on-surface font-semibold group-hover:text-primary transition-colors">{line.target}</p>
-                          </div>
-                        ))}
-                      </div>
-                   </div>
-                 ))}
+               <div className="space-y-8 bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm animate-in slide-in-from-bottom-4">
+                 <div className="flex justify-end gap-2 mb-4">
+                    {['target', 'native', 'bilingual'].map(mode => (
+                      <button
+                        key={mode}
+                        onClick={() => setStoryViewMode(mode)}
+                        className={`px-3 py-1 text-[10px] font-bold rounded uppercase transition-all ${storyViewMode === mode ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface-variant hover:text-on-surface'}`}
+                      >
+                        {mode}
+                      </button>
+                    ))}
+                 </div>
+                 <div className="space-y-12">
+                   {story.chapters.map((chapter, cIdx) => (
+                     <div key={cIdx} className="space-y-6">
+                        <h4 className="font-headline-sm text-primary border-b border-outline-variant pb-2 flex justify-between items-end">
+                          <span>Chapter {chapter.chapterNumber}: {chapter.chapterTitle}</span>
+                          <span className="text-[10px] font-mono text-on-surface-variant italic mb-0.5">~{chapter.estimatedTargetWordCount} target words</span>
+                        </h4>
+                        <div className="space-y-8">
+                          {chapter.lines?.map((line, idx) => (
+                            <div key={idx} className="group space-y-1">
+                              {(storyViewMode === 'target' || storyViewMode === 'bilingual') && (
+                                <p className="font-body-lg text-on-surface font-semibold group-hover:text-primary transition-colors">{line.target}</p>
+                              )}
+                              {(storyViewMode === 'native' || storyViewMode === 'bilingual') && (
+                                <p className="font-body-md text-on-surface-variant italic">{line.native}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                     </div>
+                   ))}
+                 </div>
                </div>
              )}
 
@@ -147,33 +184,53 @@ const LibraryDetail = ({ storyId, onBack }) => {
              )}
 
              {activeTab === 'audio' && (
-               <div className="space-y-lg animate-in slide-in-from-bottom-4">
-                 {story.audioFiles?.length > 0 ? (
-                    story.audioFiles.map((file, idx) => (
-                      <div key={idx} className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm">
-                        <div className="flex justify-between items-center mb-4">
-                           <h4 className="font-headline-sm text-on-surface capitalize">
-                             {file.id.replace(/([A-Z])/g, ' $1').trim()}
-                           </h4>
-                           <a
-                             href={`/api/library/${storyId}/file/${file.filename}`}
-                             download={file.filename}
-                             className="text-secondary hover:underline flex items-center gap-1 font-label-caps text-xs"
-                           >
-                             <span className="material-symbols-outlined text-sm">download</span>
-                             Download {file.format.toUpperCase()}
-                           </a>
-                        </div>
-                        <audio controls src={`/api/library/${storyId}/file/${file.filename}`} className="w-full h-12" />
-                      </div>
-                    ))
-                 ) : (
-                   <div className="py-12 flex flex-col items-center justify-center bg-surface-container-lowest rounded-xl border border-dashed border-outline">
+                <div className="space-y-lg animate-in slide-in-from-bottom-4 duration-300">
+                  {story.contentVersions ? (
+                    Object.entries(story.contentVersions).map(([key, data]) => {
+                      const existingAudio = story.audioFiles?.find(af => af.id === key);
+                      return (
+                        <ScriptCard
+                          key={key}
+                          id={key}
+                          label={data.label}
+                          ssml={data.ssml}
+                          readable={data.readable}
+                          mode={data.mode}
+                          targetFirst={data.targetFirst}
+                          chapters={story.chapters}
+                          formData={story.formData || {
+                            targetLanguage: story.targetLanguage,
+                            baseLanguage: story.baseLanguage
+                          }}
+                          onCopy={copyToClipboard}
+                          onDownload={downloadFile}
+                          libraryItemId={story.id}
+                          initialAudioUrl={existingAudio ? `/api/library/${story.id}/file/${existingAudio.filename}` : null}
+                          initialAudioFormat={existingAudio?.format}
+                        />
+                      );
+                    })
+                  ) : (
+                    <div className="py-12 flex flex-col items-center justify-center bg-surface-container-lowest rounded-xl border border-dashed border-outline text-center px-lg">
                       <span className="material-symbols-outlined text-4xl text-outline mb-4">volume_off</span>
-                      <p className="text-on-surface-variant font-headline-sm">No audio files saved for this story.</p>
-                   </div>
-                 )}
-               </div>
+                      <p className="text-on-surface-variant font-headline-sm">No reusable script data saved. Re-generation is not possible for this story.</p>
+                      {story.audioFiles?.length > 0 && (
+                        <div className="mt-8 w-full max-w-xl space-y-4 text-left">
+                           <h4 className="font-bold text-on-surface-variant">Existing Audio Files:</h4>
+                           {story.audioFiles.map((file, idx) => (
+                             <div key={idx} className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                               <div className="flex justify-between items-center mb-2">
+                                 <span className="font-bold capitalize">{file.id.replace(/([A-Z])/g, ' $1').trim()}</span>
+                                 <a href={`/api/library/${story.id}/file/${file.filename}`} download className="text-xs text-primary font-bold uppercase">Download</a>
+                               </div>
+                               <audio controls src={`/api/library/${story.id}/file/${file.filename}`} className="w-full h-10" />
+                             </div>
+                           ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
              )}
           </div>
         </div>

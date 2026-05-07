@@ -11,6 +11,7 @@ import LibraryDetail from './components/LibraryDetail';
 function App() {
   const [activeView, setActiveTab] = useState('wizard'); // 'wizard' or 'library'
   const [selectedLibraryStoryId, setSelectedLibraryStoryId] = useState(null);
+  const [libraryItemId, setLibraryItemId] = useState(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
@@ -36,6 +37,7 @@ function App() {
   const resetApp = () => {
     setCurrentStep(1);
     setStoryData(null);
+    setLibraryItemId(null);
     setError(null);
     setFormData({
       baseLanguage: 'English',
@@ -68,6 +70,22 @@ function App() {
 
       const data = await response.json();
       setStoryData(data);
+
+      // Auto-save to Library immediately
+      try {
+        const saveRes = await fetch('/api/library/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ storyData: data, formData }),
+        });
+        if (saveRes.ok) {
+          const saveData = await saveRes.json();
+          setLibraryItemId(saveData.id);
+        }
+      } catch (saveErr) {
+        console.warn('Auto-save failed:', saveErr);
+      }
+
       nextStep();
     } catch (err) {
       console.error('Error:', err);
@@ -214,7 +232,13 @@ function App() {
               )}
             </div>
 
-            <Step3Results formData={formData} storyData={storyData} resetApp={resetApp} />
+            <Step3Results
+              formData={formData}
+              storyData={storyData}
+              resetApp={resetApp}
+              libraryItemId={libraryItemId}
+              onLibraryIdUpdate={setLibraryItemId}
+            />
           </div>
         )}
       </main>
