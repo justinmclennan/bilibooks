@@ -3,7 +3,7 @@ import { generateSsml, generateReadable } from '../utils/ssml';
 import ScriptCard from './ScriptCard';
 import { saveStory } from '../utils/library';
 
-const Step3Results = ({ formData, storyData, resetApp }) => {
+const Step3Results = ({ formData, storyData, resetApp, libraryItemId, onLibraryIdUpdate }) => {
   const [activeTab, setActiveTab] = useState('summary');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -244,6 +244,7 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
                   onCopy={copyToClipboard}
                   onDownload={downloadFile}
                   onAudioGenerated={(audioData) => setGeneratedAudio(prev => ({ ...prev, [key]: audioData }))}
+                  libraryItemId={libraryItemId}
                 />
               ))}
             </div>

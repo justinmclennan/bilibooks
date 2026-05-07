@@ -1,12 +1,27 @@
 import { useState } from 'react';
 import { getLineParts, calculatePauseSeconds } from '../utils/ssml';
 
-const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, formData, onCopy, onDownload, onAudioGenerated }) => {
+const ScriptCard = ({
+  id,
+  label,
+  ssml,
+  readable,
+  mode,
+  targetFirst,
+  chapters,
+  formData,
+  onCopy,
+  onDownload,
+  onAudioGenerated,
+  libraryItemId,
+  initialAudioUrl,
+  initialAudioFormat
+}) => {
   const [subTab, setSubTab] = useState('preview');
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
-  const [audioUrl, setAudioUrl] = useState(null);
+  const [audioUrl, setAudioUrl] = useState(initialAudioUrl || null);
   const [audioError, setAudioError] = useState(null);
-  const [audioFormat, setAudioFormat] = useState('wav');
+  const [audioFormat, setAudioFormat] = useState(initialAudioFormat || 'wav');
 
   const generateAudio = async () => {
     setIsGeneratingAudio(true);
@@ -52,6 +67,24 @@ const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, fo
         throw new Error(data.error || 'Audio generation failed');
       }
 
+      // If libraryItemId is provided, save/attach audio to story
+      if (libraryItemId) {
+        try {
+          await fetch('/api/library/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: libraryItemId,
+              storyData: { title: formData.title }, // Minimal storyData for context
+              formData,
+              audioFiles: [{ id, audioContent: data.audioContent, format: data.format }]
+            }),
+          });
+        } catch (saveErr) {
+          console.warn('Failed to attach audio to library story:', saveErr);
+        }
+      }
+
       const byteCharacters = atob(data.audioContent);
       const byteNumbers = new Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
@@ -89,7 +122,7 @@ const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, fo
   const hasSsml = ssml && ssml.includes('<speak>');
 
   return (
-    <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+    <div className={`bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden ${audioUrl ? 'border-emerald-500/30' : ''}`}>
       <div className="bg-surface-container-low px-lg py-3 flex justify-between items-center border-b border-outline-variant">
         <h4 className="font-headline-sm text-on-surface">
           {label} {isBilingual ? '(Dual Voice)' : '(Target Only)'}
@@ -138,14 +171,14 @@ const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, fo
         </div>
 
         <div className="pt-lg border-t border-outline-variant flex flex-col sm:flex-row items-center gap-lg">
-          {!audioUrl && !isGeneratingAudio && (
+          {!isGeneratingAudio && (
             <button
               onClick={generateAudio}
               disabled={!isBilingual && !hasSsml}
-              className="flex items-center gap-2 px-6 py-2.5 bg-secondary text-on-secondary rounded-lg font-headline-sm hover:bg-secondary-container transition-all active:scale-[0.98] disabled:opacity-50"
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-headline-sm transition-all active:scale-[0.98] disabled:opacity-50 ${audioUrl ? 'bg-surface-container text-on-surface-variant border border-outline-variant' : 'bg-secondary text-on-secondary hover:bg-secondary-container'}`}
             >
-              <span className="material-symbols-outlined">headphones</span>
-              {(!isBilingual && !hasSsml) ? 'No SSML Available' : `Generate ${isBilingual ? 'Bilingual ' : ''}Audio`}
+              <span className="material-symbols-outlined">{audioUrl ? 'refresh' : 'headphones'}</span>
+              {(!isBilingual && !hasSsml) ? 'No SSML Available' : (audioUrl ? 'Regenerate Audio' : `Generate ${isBilingual ? 'Bilingual ' : ''}Audio`)}
             </button>
           )}
 

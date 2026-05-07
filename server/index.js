@@ -484,6 +484,7 @@ app.get('/api/library/:id/file/:filename', async (req, res) => {
 
 app.post('/api/library/save', async (req, res) => {
   const {
+    id, // Optional ID for updates
     storyData,
     formData,
     contentVersions,
@@ -495,34 +496,42 @@ app.post('/api/library/save', async (req, res) => {
   }
 
   try {
-    const safeTitle = (storyData.title || 'untitled')
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '-')
-      .substring(0, 30);
+    let folderName = id;
+    let folderPath;
+    let metadata;
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const folderName = `${safeTitle}-${timestamp}`;
-    const folderPath = path.join(LIBRARY_DIR, folderName);
+    if (folderName && fs.existsSync(path.join(LIBRARY_DIR, folderName))) {
+      folderPath = path.join(LIBRARY_DIR, folderName);
+      const metadataPath = path.join(folderPath, 'metadata.json');
+      metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+    } else {
+      const safeTitle = (storyData.title || 'untitled')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '-')
+        .substring(0, 30);
 
-    fs.mkdirSync(folderPath, { recursive: true });
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      folderName = `${safeTitle}-${timestamp}`;
+      folderPath = path.join(LIBRARY_DIR, folderName);
+      fs.mkdirSync(folderPath, { recursive: true });
 
-    // Save Metadata
-    const metadata = {
-      id: folderName,
-      title: storyData.title,
-      baseLanguage: formData.baseLanguage,
-      targetLanguage: formData.targetLanguage,
-      level: formData.level,
-      chapterCount: formData.chapterCount,
-      wordsPerChapter: formData.wordsPerChapter,
-      sentenceLevelStyle: formData.sentenceLevelStyle,
-      storyIdea: formData.storyIdea,
-      vocabulary: storyData.vocabularyList || [],
-      storyArc: storyData.storyArc,
-      chapters: storyData.chapters || [],
-      createdAt: new Date().toISOString(),
-      audioFiles: []
-    };
+      metadata = {
+        id: folderName,
+        title: storyData.title,
+        baseLanguage: formData.baseLanguage,
+        targetLanguage: formData.targetLanguage,
+        level: formData.level,
+        chapterCount: formData.chapterCount,
+        wordsPerChapter: formData.wordsPerChapter,
+        sentenceLevelStyle: formData.sentenceLevelStyle,
+        storyIdea: formData.storyIdea,
+        vocabulary: storyData.vocabularyList || [],
+        storyArc: storyData.storyArc,
+        chapters: storyData.chapters || [],
+        createdAt: new Date().toISOString(),
+        audioFiles: []
+      };
+    }
 
     // Save Scripts and SSML
     if (contentVersions) {
@@ -542,7 +551,14 @@ app.post('/api/library/save', async (req, res) => {
         const filename = `${file.id}.${file.format}`;
         const buffer = Buffer.from(file.audioContent, 'base64');
         fs.writeFileSync(path.join(folderPath, filename), buffer);
-        metadata.audioFiles.push({ id: file.id, filename, format: file.format });
+
+        // Update metadata.audioFiles (prevent duplicates)
+        const existingIndex = metadata.audioFiles.findIndex(af => af.id === file.id);
+        if (existingIndex >= 0) {
+          metadata.audioFiles[existingIndex] = { id: file.id, filename, format: file.format };
+        } else {
+          metadata.audioFiles.push({ id: file.id, filename, format: file.format });
+        }
       });
     }
 

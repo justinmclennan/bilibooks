@@ -16,17 +16,7 @@ const LibraryDetail = ({ storyId, onBack }) => {
   const fetchStory = async () => {
     setIsLoading(true);
     try {
-      // 1. Try localStorage first
-      let data = getStoryById(storyId);
-
-      // 2. Fallback to API if not found in localStorage (for backward compatibility with old backend saves)
-      if (!data) {
-        const response = await fetch(`/api/library/${storyId}`);
-        if (response.ok) {
-          data = await response.json();
-        }
-      }
-
+      const data = await getStoryById(storyId);
       if (!data) throw new Error('Story not found');
       setStory(data);
     } catch (err) {
@@ -93,7 +83,7 @@ const LibraryDetail = ({ storyId, onBack }) => {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-lg">
         <div className="md:col-span-8 space-y-lg">
           <div className="flex border-b border-outline-variant overflow-x-auto no-scrollbar bg-surface-container-lowest rounded-t-xl">
-            {['summary', 'chapters', 'vocabulary', 'scripts', 'audio'].map((tab) => (
+            {['summary', 'chapters', 'vocabulary', 'audio'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -193,64 +183,54 @@ const LibraryDetail = ({ storyId, onBack }) => {
                 </div>
              )}
 
-             {activeTab === 'scripts' && (
+             {activeTab === 'audio' && (
                 <div className="space-y-lg animate-in slide-in-from-bottom-4 duration-300">
                   {story.contentVersions ? (
-                    Object.entries(story.contentVersions).map(([key, data]) => (
-                      <ScriptCard
-                        key={key}
-                        id={key}
-                        label={data.label}
-                        ssml={data.ssml}
-                        readable={data.readable}
-                        mode={data.mode}
-                        targetFirst={data.targetFirst}
-                        chapters={story.chapters}
-                        formData={story.formData || {
-                          targetLanguage: story.targetLanguage,
-                          baseLanguage: story.baseLanguage
-                        }}
-                        onCopy={copyToClipboard}
-                        onDownload={downloadFile}
-                      />
-                    ))
+                    Object.entries(story.contentVersions).map(([key, data]) => {
+                      const existingAudio = story.audioFiles?.find(af => af.id === key);
+                      return (
+                        <ScriptCard
+                          key={key}
+                          id={key}
+                          label={data.label}
+                          ssml={data.ssml}
+                          readable={data.readable}
+                          mode={data.mode}
+                          targetFirst={data.targetFirst}
+                          chapters={story.chapters}
+                          formData={story.formData || {
+                            targetLanguage: story.targetLanguage,
+                            baseLanguage: story.baseLanguage
+                          }}
+                          onCopy={copyToClipboard}
+                          onDownload={downloadFile}
+                          libraryItemId={story.id}
+                          initialAudioUrl={existingAudio ? `/api/library/${story.id}/file/${existingAudio.filename}` : null}
+                          initialAudioFormat={existingAudio?.format}
+                        />
+                      );
+                    })
                   ) : (
-                    <div className="py-12 flex flex-col items-center justify-center bg-surface-container-lowest rounded-xl border border-dashed border-outline">
-                      <span className="material-symbols-outlined text-4xl text-outline mb-4">description</span>
-                      <p className="text-on-surface-variant font-headline-sm text-center px-lg">No reusable script data saved. Scripts were likely generated with an older version.</p>
+                    <div className="py-12 flex flex-col items-center justify-center bg-surface-container-lowest rounded-xl border border-dashed border-outline text-center px-lg">
+                      <span className="material-symbols-outlined text-4xl text-outline mb-4">volume_off</span>
+                      <p className="text-on-surface-variant font-headline-sm">No reusable script data saved. Re-generation is not possible for this story.</p>
+                      {story.audioFiles?.length > 0 && (
+                        <div className="mt-8 w-full max-w-xl space-y-4 text-left">
+                           <h4 className="font-bold text-on-surface-variant">Existing Audio Files:</h4>
+                           {story.audioFiles.map((file, idx) => (
+                             <div key={idx} className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                               <div className="flex justify-between items-center mb-2">
+                                 <span className="font-bold capitalize">{file.id.replace(/([A-Z])/g, ' $1').trim()}</span>
+                                 <a href={`/api/library/${story.id}/file/${file.filename}`} download className="text-xs text-primary font-bold uppercase">Download</a>
+                               </div>
+                               <audio controls src={`/api/library/${story.id}/file/${file.filename}`} className="w-full h-10" />
+                             </div>
+                           ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-             )}
-
-             {activeTab === 'audio' && (
-               <div className="space-y-lg animate-in slide-in-from-bottom-4">
-                 {story.audioFiles?.length > 0 ? (
-                    story.audioFiles.map((file, idx) => (
-                      <div key={idx} className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm">
-                        <div className="flex justify-between items-center mb-4">
-                           <h4 className="font-headline-sm text-on-surface capitalize">
-                             {file.id.replace(/([A-Z])/g, ' $1').trim()}
-                           </h4>
-                           <a
-                             href={`/api/library/${storyId}/file/${file.filename}`}
-                             download={file.filename}
-                             className="text-secondary hover:underline flex items-center gap-1 font-label-caps text-xs"
-                           >
-                             <span className="material-symbols-outlined text-sm">download</span>
-                             Download {file.format.toUpperCase()}
-                           </a>
-                        </div>
-                        <audio controls src={`/api/library/${storyId}/file/${file.filename}`} className="w-full h-12" />
-                      </div>
-                    ))
-                 ) : (
-                   <div className="py-12 flex flex-col items-center justify-center bg-surface-container-lowest rounded-xl border border-dashed border-outline">
-                      <span className="material-symbols-outlined text-4xl text-outline mb-4">volume_off</span>
-                      <p className="text-on-surface-variant font-headline-sm">No audio files saved for this story.</p>
-                   </div>
-                 )}
-               </div>
              )}
           </div>
         </div>

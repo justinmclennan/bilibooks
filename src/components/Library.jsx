@@ -13,7 +13,7 @@ const Library = ({ onViewDetails }) => {
   const fetchLibrary = async () => {
     setIsLoading(true);
     try {
-      const data = getLibrary();
+      const data = await getLibrary();
       setStories(data);
     } catch (err) {
       console.error(err);
@@ -76,8 +76,13 @@ const Library = ({ onViewDetails }) => {
             <div key={story.id} className="glass-card hover:shadow-xl transition-all group flex flex-col">
               <div className="p-lg flex-grow">
                 <div className="flex justify-between items-start mb-4">
-                  <div className="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-[10px] font-bold uppercase tracking-wider">
-                    {story.targetLanguage}
+                  <div className="flex gap-2">
+                    <div className="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-[10px] font-bold uppercase tracking-wider">
+                      {story.targetLanguage}
+                    </div>
+                    <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${story.audioFiles?.length > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-surface-container text-on-surface-variant'}`}>
+                      {story.audioFiles?.length > 0 ? 'Audio Ready' : 'No Audio Yet'}
+                    </div>
                   </div>
                   <span className="text-[10px] text-on-surface-variant font-mono">{story.level}</span>
                 </div>

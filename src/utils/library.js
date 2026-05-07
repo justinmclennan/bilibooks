@@ -1,63 +1,43 @@
-const LIBRARY_KEY = 'linguStory_library';
-
 /**
- * Saves a story package to localStorage.
+ * Saves a story package to the backend API (and implicitly to local filesystem).
+ * Updates if libraryItemId is provided.
  */
-export const saveStory = (storyData, formData, contentVersions) => {
-  const library = getLibrary();
-
-  const id = `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  const newStory = {
-    id,
-    title: storyData.title || 'Untitled Story',
-    createdAt: new Date().toISOString(),
-    baseLanguage: formData.baseLanguage,
-    targetLanguage: formData.targetLanguage,
-    level: formData.level,
-    chapterCount: formData.chapterCount,
-    wordsPerChapter: formData.wordsPerChapter,
-    sentenceLevelStyle: formData.sentenceLevelStyle,
-    storyIdea: formData.storyIdea,
-    storyArc: storyData.storyArc,
-    chapters: storyData.chapters || (storyData.lines ? [{ lines: storyData.lines }] : []),
-    vocabulary: storyData.vocabularyList || [],
+export const saveStory = async (storyData, formData, contentVersions, audioFiles, libraryItemId) => {
+  const body = {
+    id: libraryItemId,
+    storyData,
+    formData,
     contentVersions,
-    formData, // Storing full formData for future reference
-    storyData, // Storing full storyData for future reference
+    audioFiles
   };
 
-  library.unshift(newStory);
-  localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
-  return id;
-};
+  const response = await fetch('/api/library/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
 
-/**
- * Retrieves all stories from localStorage.
- */
-export const getLibrary = () => {
-  const data = localStorage.getItem(LIBRARY_KEY);
-  if (!data) return [];
-  try {
-    return JSON.parse(data);
-  } catch (err) {
-    console.error('Failed to parse library from localStorage', err);
-    return [];
+  if (!response.ok) {
+    throw new Error('Failed to save to library');
   }
+
+  return await response.json();
 };
 
 /**
- * Retrieves a single story by ID from localStorage.
+ * Retrieves all stories from the backend API.
  */
-export const getStoryById = (id) => {
-  const library = getLibrary();
-  return library.find(story => story.id === id) || null;
+export const getLibrary = async () => {
+  const response = await fetch('/api/library');
+  if (!response.ok) throw new Error('Failed to fetch library');
+  return await response.json();
 };
 
 /**
- * Deletes a story by ID.
+ * Retrieves a single story by ID from the backend API.
  */
-export const deleteStory = (id) => {
-  const library = getLibrary();
-  const updatedLibrary = library.filter(story => story.id !== id);
-  localStorage.setItem(LIBRARY_KEY, JSON.stringify(updatedLibrary));
+export const getStoryById = async (id) => {
+  const response = await fetch(`/api/library/${id}`);
+  if (!response.ok) throw new Error('Failed to fetch story details');
+  return await response.json();
 };
