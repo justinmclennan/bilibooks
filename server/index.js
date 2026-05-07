@@ -26,23 +26,7 @@ const openai = new OpenAI({
 
 const ttsClient = new textToSpeech.TextToSpeechClient();
 
-function calculateGenerationTargets(wordsPerChapter, sentenceLevelStyle) {
-  let minChapterWords, maxChapterWords;
-  if (wordsPerChapter === 150) {
-    minChapterWords = 125;
-    maxChapterWords = 175;
-  } else if (wordsPerChapter === 300) {
-    minChapterWords = 250;
-    maxChapterWords = 350;
-  } else if (wordsPerChapter === 450) {
-    minChapterWords = 400;
-    maxChapterWords = 500;
-  } else {
-    // Proportional range for custom values (~15%)
-    minChapterWords = Math.floor(wordsPerChapter * 0.85);
-    maxChapterWords = Math.ceil(wordsPerChapter * 1.15);
-  }
-
+function calculateGenerationTargets(sentencesPerChapter, sentenceLevelStyle) {
   const styleConfig = {
     'pre-a1': { avg: 4, min: 3, max: 5 },
     'a1': { avg: 6, min: 5, max: 7 },
@@ -52,9 +36,15 @@ function calculateGenerationTargets(wordsPerChapter, sentenceLevelStyle) {
 
   const config = styleConfig[sentenceLevelStyle] || styleConfig['a1'];
 
-  const targetSentenceCount = Math.round(wordsPerChapter / config.avg);
-  const minSentenceCount = Math.max(1, Math.floor(targetSentenceCount * 0.9));
-  const maxSentenceCount = Math.ceil(targetSentenceCount * 1.1);
+  const targetSentenceCount = sentencesPerChapter;
+  // Use a +/- 1 sentence tolerance
+  const minSentenceCount = Math.max(1, targetSentenceCount - 1);
+  const maxSentenceCount = targetSentenceCount + 1;
+
+  // Derive approximate word counts for reference/legacy display
+  const targetWords = targetSentenceCount * config.avg;
+  const minChapterWords = Math.floor(targetWords * 0.75);
+  const maxChapterWords = Math.ceil(targetWords * 1.25);
 
   return {
     minChapterWords,
@@ -85,8 +75,6 @@ function validateChapter(chapterData, targets, sentenceLevelStyle) {
   const actualWordCount = countTargetWords(chapterData);
   const actualSentenceCount = chapterData.lines ? chapterData.lines.length : 0;
 
-  const tooShort = actualWordCount < targets.minChapterWords;
-  const tooLong = actualWordCount > targets.maxChapterWords;
   const tooFewSentences = actualSentenceCount < targets.minSentenceCount;
   const tooManySentences = actualSentenceCount > targets.maxSentenceCount;
 
@@ -130,8 +118,6 @@ function validateChapter(chapterData, targets, sentenceLevelStyle) {
   const hasSplitViolations = splitViolations.length > 0;
 
   const reasons = [];
-  if (tooShort) reasons.push(`Too few target words (${actualWordCount}/${targets.minChapterWords})`);
-  if (tooLong) reasons.push(`Too many target words (${actualWordCount}/${targets.maxChapterWords})`);
   if (tooFewSentences) reasons.push(`Too few sentences (${actualSentenceCount}/${targets.minSentenceCount})`);
   if (tooManySentences) reasons.push(`Too many sentences (${actualSentenceCount}/${targets.maxSentenceCount})`);
   if (tooManyLengthViolations) reasons.push(`Too many sentence length violations (${lineViolations.length}/${actualSentenceCount})`);
@@ -140,8 +126,6 @@ function validateChapter(chapterData, targets, sentenceLevelStyle) {
   return {
     valid: reasons.length === 0,
     reasons,
-    tooShort,
-    tooLong,
     tooFewSentences,
     tooManySentences,
     tooManyLengthViolations,
@@ -163,7 +147,7 @@ app.post('/api/generate-story', async (req, res) => {
     level,
     chapterCount,
     sentenceLevelStyle,
-    wordsPerChapter,
+    sentencesPerChapter,
     storyIdea,
     vocabulary,
     planningMode
@@ -200,13 +184,14 @@ Planning Mode: ${planningMode}
     let combinedVocabList = [];
     let previousSummaries = [];
 
-    const targets = calculateGenerationTargets(wordsPerChapter, sentenceLevelStyle);
+    const targets = calculateGenerationTargets(sentencesPerChapter, sentenceLevelStyle);
 
     for (const chapterPlan of plan.chapters) {
       console.log(`--- Generating Chapter ${chapterPlan.chapterNumber}: ${chapterPlan.chapterTitle} ---`);
-      console.log(`Selected wordsPerChapter: ${wordsPerChapter}`);
+      console.log(`Selected sentencesPerChapter: ${sentencesPerChapter}`);
       console.log(`Selected sentenceLevelStyle: ${sentenceLevelStyle}`);
-      console.log(`Target: ${targets.minChapterWords}-${targets.maxChapterWords} words, ${targets.minSentenceCount}-${targets.maxSentenceCount} sentences (${targets.minSentenceWords}-${targets.maxSentenceWords} words each).`);
+      console.log(`Target Sentence Count: ${targets.minSentenceCount}-${targets.maxSentenceCount}`);
+      console.log(`Target Sentence Length: ${targets.minSentenceWords}-${targets.maxSentenceWords} words each.`);
 
       const generatePrompt = (retryMessage = null, existingLines = null) => {
         let prompt = `
@@ -214,7 +199,6 @@ Target Language: ${targetLanguage}
 Base Language: ${baseLanguage}
 CEFR Level: ${level}
 Sentence Level Style: ${sentenceLevelStyle}
-Target Word Count: ${targets.minChapterWords}-${targets.maxChapterWords}
 Target Sentence Count: ${targets.minSentenceCount}-${targets.maxSentenceCount}
 Each ${targetLanguage} sentence must be ${targets.minSentenceWords}-${targets.maxSentenceWords} words.
 Chapter Info: ${JSON.stringify(chapterPlan)}
@@ -262,34 +246,21 @@ Continuity Context: ${previousSummaries.join(' ')}
         console.log(`Sentence length violations: ${validation.lineViolations.length}`);
 
         let correction = "";
-        if (validation.tooShort && !validation.tooFewSentences) {
-          console.log(`Repair Mode A: Too few target words, sentence count acceptable: lengthen existing sentences.`);
-          correction = `The sentence count is already correct (${validation.actualSentenceCount}), but the target-language sentences are too short.
-          REPAIR: Revise the existing ${targetLanguage} sentences so each one has ${targets.minSentenceWords}-${targets.maxSentenceWords} words.
-          Do not add many new sentences. Preserve the same story events, chapter purpose, vocabulary plan, and order.
-          Add concrete detail, emotion, action, sensory detail, consequence, or a connector to each short sentence.`;
-        }
-        else if (validation.tooShort && validation.tooFewSentences) {
-          console.log(`Repair Mode B: Too few target words and too few sentences: add sentences.`);
-          const missingWords = targets.minChapterWords - validation.actualWordCount;
-          const neededSentences = Math.ceil(missingWords / targets.targetAverageSentenceWords);
-          correction = `The chapter is too short (${validation.actualWordCount} words) and has too few sentences (${validation.actualSentenceCount}).
-          REPAIR: Add approximately ${neededSentences} more ${targetLanguage} sentences to reach the target word count. Ensure each sentence is ${targets.minSentenceWords}-${targets.maxSentenceWords} words.`;
-        }
-        else if (validation.tooLong) {
-          console.log(`Repair Mode C: Too many target words: compress chapter.`);
-          correction = `The chapter is too long (${validation.actualWordCount} words).
-          REPAIR: Compress or remove excess detail while preserving the story purpose and vocabulary plan. Target ${targets.minChapterWords}-${targets.maxChapterWords} words total.`;
-        }
-        else if (validation.tooManySentences || validation.tooManyLengthViolations) {
-          console.log(`Repair Mode D: Too many sentences or short average length: rewrite for sentence density.`);
-          correction = `The sentences are too short on average.
-          REPAIR: Rewrite the chapter with fewer, longer sentences. Each ${targetLanguage} sentence MUST be ${targets.minSentenceWords}-${targets.maxSentenceWords} words. Preserve the same story events.`;
-        }
-        else if (validation.tooFewSentences && !validation.tooShort) {
-          console.log(`Repair Mode E: Too few sentences but word count okay: split sentences.`);
+        if (validation.tooFewSentences) {
+          console.log(`Repair Mode B: Too few sentences: add sentences.`);
+          const neededSentences = targets.targetSentenceCount - validation.actualSentenceCount;
           correction = `The chapter has too few sentences (${validation.actualSentenceCount}).
-          REPAIR: Split or rewrite into more sentences (target ${targets.minSentenceCount}-${targets.maxSentenceCount}) while preserving the chapter word count.`;
+          REPAIR: Add approximately ${neededSentences} more ${targetLanguage} sentences to reach the target of ${targets.targetSentenceCount}. Ensure each sentence is ${targets.minSentenceWords}-${targets.maxSentenceWords} words.`;
+        }
+        else if (validation.tooManySentences) {
+          console.log(`Repair Mode C: Too many sentences: compress chapter.`);
+          correction = `The chapter has too many sentences (${validation.actualSentenceCount}).
+          REPAIR: Compress the story to reach the target of ${targets.targetSentenceCount} sentences. Ensure each sentence is ${targets.minSentenceWords}-${targets.maxSentenceWords} words.`;
+        }
+        else if (validation.tooManyLengthViolations) {
+          console.log(`Repair Mode D: Sentence length violations: rewrite for sentence density.`);
+          correction = `Too many sentences are outside the target range of ${targets.minSentenceWords}-${targets.maxSentenceWords} words.
+          REPAIR: Rewrite the chapter so each ${targetLanguage} sentence is within ${targets.minSentenceWords}-${targets.maxSentenceWords} words. Keep the total sentence count around ${targets.targetSentenceCount}.`;
         }
         else if (validation.hasSplitViolations) {
           console.log(`Repair Mode F: Missing split halves.`);
@@ -514,7 +485,7 @@ app.post('/api/library/save', async (req, res) => {
       targetLanguage: formData.targetLanguage,
       level: formData.level,
       chapterCount: formData.chapterCount,
-      wordsPerChapter: formData.wordsPerChapter,
+      sentencesPerChapter: formData.sentencesPerChapter,
       sentenceLevelStyle: formData.sentenceLevelStyle,
       storyIdea: formData.storyIdea,
       vocabulary: storyData.vocabularyList || [],

@@ -161,11 +161,18 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
                            )}
                          </div>
                          <div className="flex gap-2">
-                           {chapter.estimatedTargetWordCount && (
-                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${chapter.validationPassed ? 'text-on-surface-variant bg-surface-container border-outline-variant' : 'text-error bg-error-container border-error/20'}`}>
-                               {chapter.estimatedTargetWordCount} WORDS
-                             </span>
-                           )}
+                           <div className="flex gap-1 items-center">
+                             {chapter.actualSentenceCount && (
+                               <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${chapter.validationPassed ? 'text-on-surface-variant bg-surface-container border-outline-variant' : 'text-error bg-error-container border-error/20'}`}>
+                                 {chapter.actualSentenceCount} SENTENCES
+                               </span>
+                             )}
+                             {chapter.estimatedTargetWordCount && (
+                               <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${chapter.validationPassed ? 'text-on-surface-variant bg-surface-container border-outline-variant' : 'text-error bg-error-container border-error/20'}`}>
+                                 {chapter.estimatedTargetWordCount} WORDS
+                               </span>
+                             )}
+                           </div>
                          </div>
                       </div>
                       <p className="text-body-sm text-on-surface-variant mb-3">{chapter.storyPurpose}</p>

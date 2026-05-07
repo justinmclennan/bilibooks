@@ -35,12 +35,10 @@ LANGUAGE MAPPING RULES:
 - The 'native' fields (native, nativeFirstHalf, nativeSecondHalf) MUST be written ONLY in {baseLanguage}.
 - NEVER swap the languages. The learner is studying {targetLanguage} using {baseLanguage} as their base.
 
-WORDS PER CHAPTER TARGETS:
-- The 'wordsPerChapter' value is a strict target for the TARGET LANGUAGE story words (not counting translations, repeated lines, or metadata).
-- If 'wordsPerChapter' is 150: Target 125–175 target-language words.
-- If 'wordsPerChapter' is 300: Target 250–350 target-language words.
-- If 'wordsPerChapter' is 450: Target 400–500 target-language words.
-- You will be given a specific 'targetSentenceCount' to reach. YOU MUST MEET THIS COUNT.
+SENTENCE COUNT AND LENGTH TARGETS:
+- Write each chapter with approximately 'targetSentenceCount' target-language sentences. YOU MUST MEET THIS COUNT.
+- Each target-language sentence should usually follow the selected 'sentenceLevelStyle' words-per-sentence range.
+- Do not target a total word count per chapter. Instead, control chapter length by sentence count and sentence length.
 
 SENTENCE LEVEL STYLE (STRICT TARGETS):
 Follow these rules for EVERY full target-language sentence based on 'sentenceLevelStyle':
@@ -71,6 +69,17 @@ LANGUAGE RULES:
 - ALWAYS put the target language in 'target' fields and native language in 'native' fields.
 - FOR FRENCH A1/A2: NEVER use Passé Simple. PREFER Present Tense or Passé Composé.
 - Use natural, adult-appropriate but learner-friendly vocabulary.
+
+INTERLINEAR TRANSLATION RULES:
+- Interlinear translations (nativeFirstHalf, nativeSecondHalf, and the 'native' field when used for interlinear) should be literal, transparent, and learner-facing.
+- Avoid overly literary or idiomatic native-language paraphrases when a clearer literal translation is possible.
+- Keep the native-language line closely aligned with the target-language line.
+- The 'chapterSummary' and standalone native-language story can be more natural, but the interlinear versions should stay close to the target-language structure.
+- EXAMPLES:
+  - "à voix basse" -> "in a low voice" (NOT "in hushed tones")
+  - "je viens de comprendre" -> "I just understood" (NOT "it dawned on me")
+  - "il y a" -> "there is/there are"
+  - "avoir besoin de" -> "to need" or "to have need of"
 
 CONTINUATION RULES:
 - If you are asked to 'CONTINUE' a chapter, do NOT repeat the story from the beginning.

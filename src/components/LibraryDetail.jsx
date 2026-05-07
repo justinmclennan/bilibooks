@@ -127,8 +127,8 @@ const LibraryDetail = ({ storyId, onBack }) => {
 
                  <div className="grid grid-cols-2 gap-4">
                     <div className="bg-surface-container-lowest p-md rounded-xl border border-outline-variant">
-                       <p className="text-[10px] font-bold text-on-surface-variant uppercase mb-1">Words per chapter</p>
-                       <p className="font-headline-sm text-on-surface">{story.wordsPerChapter}</p>
+                       <p className="text-[10px] font-bold text-on-surface-variant uppercase mb-1">Sentences per chapter</p>
+                       <p className="font-headline-sm text-on-surface">{story.sentencesPerChapter || 'N/A'}</p>
                     </div>
                     <div className="bg-surface-container-lowest p-md rounded-xl border border-outline-variant">
                        <p className="text-[10px] font-bold text-on-surface-variant uppercase mb-1">Style</p>
@@ -156,7 +156,9 @@ const LibraryDetail = ({ storyId, onBack }) => {
                      <div key={cIdx} className="space-y-6">
                         <h4 className="font-headline-sm text-primary border-b border-outline-variant pb-2 flex justify-between items-end">
                           <span>Chapter {chapter.chapterNumber}: {chapter.chapterTitle}</span>
-                          <span className="text-[10px] font-mono text-on-surface-variant italic mb-0.5">~{chapter.estimatedTargetWordCount} target words</span>
+                          <span className="text-[10px] font-mono text-on-surface-variant italic mb-0.5">
+                            {chapter.actualSentenceCount} sentences • ~{chapter.estimatedTargetWordCount} target words
+                          </span>
                         </h4>
                         <div className="space-y-8">
                           {chapter.lines?.map((line, idx) => (
