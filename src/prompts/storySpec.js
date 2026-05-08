@@ -70,6 +70,13 @@ LANGUAGE RULES:
 - FOR FRENCH A1/A2: NEVER use Passé Simple. PREFER Present Tense or Passé Composé.
 - Use natural, adult-appropriate but learner-friendly vocabulary.
 
+VOCABULARY AND FLASHCARD RULES:
+- Pull the 'exampleSentenceTargetLanguage' from the generated story whenever possible.
+- The example sentence MUST contain the vocabulary word or phrase.
+- If the exact vocabulary word does not appear in the story, choose the closest sentence using the same word family.
+- If no example can be found in the story, show "No story example found."
+- All translations (native meaning and example sentence translation) MUST follow the literal translation rules below.
+
 INTERLINEAR TRANSLATION RULES:
 - Interlinear translations (nativeFirstHalf, nativeSecondHalf, and the 'native' field when used for interlinear) should be literal, transparent, and learner-facing.
 - Avoid overly literary or idiomatic native-language paraphrases when a clearer literal translation is possible.
@@ -107,7 +114,12 @@ OUTPUT FORMAT (JSON ONLY):
     }
   ],
   "vocabularyList": [
-    { "target": "word", "native": "meaning" }
+    {
+      "termTargetLanguage": "target word",
+      "termNativeLanguage": "native meaning",
+      "exampleSentenceTargetLanguage": "sentence from the story containing the word",
+      "exampleSentenceNativeLanguage": "fairly literal translation of that sentence"
+    }
   ]
 }
 `;

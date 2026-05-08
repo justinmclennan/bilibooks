@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { getStoryById } from '../utils/library';
 import ScriptCard from './ScriptCard';
+import Flashcard from './Flashcard';
+import ReadAlongPlayer from './ReadAlongPlayer';
 
 const LibraryDetail = ({ storyId, onBack }) => {
   const [story, setStory] = useState(null);
@@ -93,7 +95,7 @@ const LibraryDetail = ({ storyId, onBack }) => {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-lg">
         <div className="md:col-span-8 space-y-lg">
           <div className="flex border-b border-outline-variant overflow-x-auto no-scrollbar bg-surface-container-lowest rounded-t-xl">
-            {['summary', 'chapters', 'vocabulary', 'scripts', 'audio'].map((tab) => (
+            {['summary', 'chapters', 'vocabulary', 'flashcards', 'scripts', 'audio'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -185,14 +187,24 @@ const LibraryDetail = ({ storyId, onBack }) => {
                     Vocabulary List
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {story.vocabulary?.map((item, idx) => (
-                      <div key={idx} className="p-4 bg-surface-container-low rounded-xl border border-outline-variant flex justify-between items-center hover:bg-surface-container transition-colors">
-                        <span className="font-bold text-primary font-body-md">{item.target}</span>
-                        <span className="text-on-surface-variant font-body-sm">{item.native}</span>
-                      </div>
-                    ))}
+                    {story.vocabulary?.map((item, idx) => {
+                      const target = item.termTargetLanguage || item.target;
+                      const native = item.termNativeLanguage || item.native;
+                      return (
+                        <div key={idx} className="p-4 bg-surface-container-low rounded-xl border border-outline-variant flex justify-between items-center hover:bg-surface-container transition-colors">
+                          <span className="font-bold text-primary font-body-md">{target}</span>
+                          <span className="text-on-surface-variant font-body-sm">{native}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
+             )}
+
+             {activeTab === 'flashcards' && (
+               <div className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm animate-in slide-in-from-bottom-4 duration-300 min-h-[500px] flex flex-col justify-center">
+                  <Flashcard vocabulary={story.vocabulary} />
+               </div>
              )}
 
              {activeTab === 'scripts' && (
@@ -230,7 +242,7 @@ const LibraryDetail = ({ storyId, onBack }) => {
                  {story.audioFiles?.length > 0 ? (
                     story.audioFiles.map((file, idx) => (
                       <div key={idx} className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm">
-                        <div className="flex justify-between items-center mb-4">
+                        <div className="flex justify-between items-center mb-4 border-b border-outline-variant pb-2">
                            <h4 className="font-headline-sm text-on-surface capitalize">
                              {file.id.replace(/([A-Z])/g, ' $1').trim()}
                            </h4>
@@ -243,7 +255,11 @@ const LibraryDetail = ({ storyId, onBack }) => {
                              Download {file.format.toUpperCase()}
                            </a>
                         </div>
-                        <audio controls src={`/api/library/${storyId}/file/${file.filename}`} className="w-full h-12" />
+                        <ReadAlongPlayer
+                          audioUrl={`/api/library/${storyId}/file/${file.filename}`}
+                          chapters={story.chapters}
+                          timepoints={file.timepoints}
+                        />
                       </div>
                     ))
                  ) : (

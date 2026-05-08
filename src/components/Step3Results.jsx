@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
 import { generateSsml, generateReadable } from '../utils/ssml';
 import ScriptCard from './ScriptCard';
+import Flashcard from './Flashcard';
+import ReadAlongPlayer from './ReadAlongPlayer';
 import { saveStory } from '../utils/library';
 
 const Step3Results = ({ formData, storyData, resetApp }) => {
@@ -98,7 +100,7 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
       <div className="md:col-span-8 space-y-lg">
         {/* Navigation Tabs */}
         <div className="flex border-b border-outline-variant overflow-x-auto no-scrollbar bg-surface-container-lowest rounded-t-xl">
-          {['summary', 'story', 'vocabulary', 'scripts'].map((tab) => (
+          {['summary', 'story', 'vocabulary', 'flashcards', 'scripts'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -225,14 +227,24 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
                 Vocabulary List
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {storyData?.vocabularyList?.map((item, idx) => (
-                  <div key={idx} className="p-4 bg-surface-container-low rounded-xl border border-outline-variant flex justify-between items-center hover:bg-surface-container transition-colors">
-                    <span className="font-bold text-primary font-body-md">{item.target}</span>
-                    <span className="text-on-surface-variant font-body-sm">{item.native}</span>
-                  </div>
-                ))}
+                {storyData?.vocabularyList?.map((item, idx) => {
+                  const target = item.termTargetLanguage || item.target;
+                  const native = item.termNativeLanguage || item.native;
+                  return (
+                    <div key={idx} className="p-4 bg-surface-container-low rounded-xl border border-outline-variant flex justify-between items-center hover:bg-surface-container transition-colors">
+                      <span className="font-bold text-primary font-body-md">{target}</span>
+                      <span className="text-on-surface-variant font-body-sm">{native}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
+          )}
+
+          {activeTab === 'flashcards' && (
+             <div className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm animate-in slide-in-from-bottom-4 duration-300 min-h-[500px] flex flex-col justify-center">
+                <Flashcard vocabulary={storyData?.vocabularyList} />
+             </div>
           )}
 
           {activeTab === 'scripts' && (
@@ -252,6 +264,18 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
                   onDownload={downloadFile}
                   onAudioGenerated={(audioData) => setGeneratedAudio(prev => ({ ...prev, [key]: audioData }))}
                 />
+              ))}
+
+              {Object.entries(generatedAudio).map(([key, data]) => (
+                <div key={`readalong-${key}`} className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm animate-in slide-in-from-bottom-4">
+                  <ReadAlongPlayer
+                    audioUrl={`data:audio/${data.format};base64,${data.audioContent}`}
+                    chapters={chapters}
+                    mode={contentVersions[key].mode}
+                    targetFirst={contentVersions[key].targetFirst}
+                    timepoints={data.timepoints}
+                  />
+                </div>
               ))}
             </div>
           )}

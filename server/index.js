@@ -295,8 +295,8 @@ Continuity Context: ${previousSummaries.join(' ')}
     }
 
     // Deduplicate vocab
-    const uniqueVocab = Array.from(new Set(combinedVocabList.map(v => v.target)))
-      .map(target => combinedVocabList.find(v => v.target === target));
+    const uniqueVocab = Array.from(new Set(combinedVocabList.map(v => v.termTargetLanguage || v.target)))
+      .map(term => combinedVocabList.find(v => (v.termTargetLanguage || v.target) === term));
 
     res.json({
       title: plan.title,
@@ -384,10 +384,15 @@ app.post('/api/generate-audio', async (req, res) => {
       input: { ssml: ssml },
       voice: voice,
       audioConfig: { audioEncoding: 'MP3' },
+      enableTimePointing: ['SSML_MARK'],
     };
 
     const [response] = await ttsClient.synthesizeSpeech(request);
-    res.json({ audioContent: response.audioContent.toString('base64'), format: 'mp3' });
+    res.json({
+      audioContent: response.audioContent.toString('base64'),
+      format: 'mp3',
+      timepoints: response.timepoints
+    });
   } catch (error) {
     console.error('Google TTS Error:', error);
     res.status(500).json({ error: 'Audio generation failed.' });
@@ -513,7 +518,12 @@ app.post('/api/library/save', async (req, res) => {
         const filename = `${file.id}.${file.format}`;
         const buffer = Buffer.from(file.audioContent, 'base64');
         fs.writeFileSync(path.join(folderPath, filename), buffer);
-        metadata.audioFiles.push({ id: file.id, filename, format: file.format });
+        metadata.audioFiles.push({
+          id: file.id,
+          filename,
+          format: file.format,
+          timepoints: file.timepoints
+        });
       });
     }
 
