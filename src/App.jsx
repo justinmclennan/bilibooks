@@ -7,9 +7,10 @@ import Step2Builder from './components/Step2Builder';
 import Step3Results from './components/Step3Results';
 import Library from './components/Library';
 import LibraryDetail from './components/LibraryDetail';
+import GlobalFlashcardLibrary from './components/GlobalFlashcardLibrary';
 
 function App() {
-  const [activeView, setActiveTab] = useState('wizard'); // 'wizard' or 'library'
+  const [activeView, setActiveTab] = useState('wizard'); // 'wizard', 'library', or 'flashcards'
   const [selectedLibraryStoryId, setSelectedLibraryStoryId] = useState(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -97,6 +98,10 @@ function App() {
 
         {activeView === 'library' && selectedLibraryStoryId && (
           <LibraryDetail storyId={selectedLibraryStoryId} onBack={() => setSelectedLibraryStoryId(null)} />
+        )}
+
+        {activeView === 'flashcards' && (
+          <GlobalFlashcardLibrary />
         )}
 
         {activeView === 'wizard' && currentStep === 1 && (

@@ -22,8 +22,11 @@ const TopAppBar = ({ onNavigate, activeView }) => {
           >
             Library
           </button>
-          <button className="text-slate-500 dark:text-slate-400 font-headline-sm text-sm font-medium hover:text-blue-700 dark:hover:text-blue-300 transition-colors duration-200">
-            Stats
+          <button
+            onClick={() => onNavigate('flashcards')}
+            className={`${activeView === 'flashcards' ? 'text-blue-600 dark:text-blue-400 font-bold border-b-2 border-blue-600' : 'text-slate-500 dark:text-slate-400'} font-headline-sm text-sm font-medium transition-colors duration-200`}
+          >
+            Flashcards
           </button>
         </div>
         <div className="flex items-center space-x-4">

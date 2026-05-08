@@ -16,9 +16,12 @@ const BottomNavBar = ({ onNavigate, activeView }) => {
         <span className="material-symbols-outlined">auto_stories</span>
         <span className="font-headline-sm text-[10px] font-semibold uppercase tracking-wider">Library</span>
       </div>
-      <div className="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 px-5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 active:scale-90 transition-all duration-200 ease-out">
-        <span className="material-symbols-outlined">bar_chart</span>
-        <span className="font-headline-sm text-[10px] font-semibold uppercase tracking-wider">Stats</span>
+      <div
+        onClick={() => onNavigate('flashcards')}
+        className={`flex flex-col items-center justify-center ${activeView === 'flashcards' ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300' : 'text-slate-400 dark:text-slate-500'} rounded-2xl px-5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 active:scale-90 transition-all duration-200 ease-out cursor-pointer`}
+      >
+        <span className="material-symbols-outlined">quiz</span>
+        <span className="font-headline-sm text-[10px] font-semibold uppercase tracking-wider">Flashcards</span>
       </div>
       <div className="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 px-5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 active:scale-90 transition-all duration-200 ease-out">
         <span className="material-symbols-outlined">settings</span>

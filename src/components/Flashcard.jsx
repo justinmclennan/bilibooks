@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const Flashcard = ({ vocabulary }) => {
+const Flashcard = ({ vocabulary, onUpdateStatus }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
 
@@ -71,6 +71,33 @@ const Flashcard = ({ vocabulary }) => {
                 </div>
               )}
             </div>
+
+            {/* Review Status Buttons (only if onUpdateStatus is provided) */}
+            {onUpdateStatus && (
+              <div className="mt-6 flex gap-3 px-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpdateStatus(currentItem.id, 'stillLearning');
+                    handleNext();
+                  }}
+                  className="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-700 py-3 rounded-xl font-bold text-xs border border-amber-200 transition-all"
+                >
+                  Still learning
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpdateStatus(currentItem.id, 'known');
+                    handleNext();
+                  }}
+                  className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-xl font-bold text-xs border border-emerald-200 transition-all"
+                >
+                  Know it
+                </button>
+              </div>
+            )}
+
             <p className="mt-4 text-center text-xs text-on-surface-variant font-bold uppercase tracking-widest">Tap to flip back</p>
           </div>
         </div>
