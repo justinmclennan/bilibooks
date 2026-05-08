@@ -1,10 +1,10 @@
 
 const Step2Builder = ({ formData, updateFormData, nextStep, prevStep, isGenerating }) => {
   const sentenceLevelStyles = [
-    { id: 'pre-a1', label: 'Pre-A1', sub: '3–5 words' },
-    { id: 'a1', label: 'A1', sub: '5–7 words' },
-    { id: 'a2', label: 'A2', sub: '8–13 words' },
-    { id: 'b1', label: 'B1', sub: '14–20 words' },
+    { id: 'pre-a1', label: 'Beginner', sub: '3–5 words' },
+    { id: 'a1', label: 'Beginner+', sub: '5–8 words' },
+    { id: 'a2', label: 'Intermediate', sub: '9–14 words' },
+    { id: 'b1', label: 'Intermediate+', sub: '14–20 words' },
   ];
 
   const planningModes = [
@@ -127,9 +127,9 @@ const Step2Builder = ({ formData, updateFormData, nextStep, prevStep, isGenerati
         </div>
 
         <div>
-          <label className="block font-headline-sm text-headline-sm text-on-surface mb-1">Sentence Length / Level Style</label>
+          <label className="block font-headline-sm text-headline-sm text-on-surface mb-1">Words Per Sentence</label>
           <p className="text-[11px] text-on-surface-variant mb-4">
-            Pre-A1 and A1 use one sentence per line. A2 and B1 use longer connected sentences split into two lines for audio practice.
+            Beginner and Beginner+ use one sentence per line. Intermediate and Intermediate+ use longer connected sentences split into two lines for audio practice.
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {sentenceLevelStyles.map((style) => {

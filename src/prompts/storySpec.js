@@ -36,9 +36,11 @@ LANGUAGE MAPPING RULES:
 - NEVER swap the languages. The learner is studying {targetLanguage} using {baseLanguage} as their base.
 
 SENTENCE COUNT AND LENGTH TARGETS:
-- Write each chapter with approximately 'targetSentenceCount' target-language sentences. YOU MUST MEET THIS COUNT.
-- Each target-language sentence should usually follow the selected 'sentenceLevelStyle' words-per-sentence range.
+- Write each chapter with approximately the requested number of target-language sentences.
+- Each target-language sentence should usually follow the selected words-per-sentence range.
+- The words-per-sentence setting refers to target-language sentence length.
 - Do not target a total word count per chapter. Instead, control chapter length by sentence count and sentence length.
+- Prioritize the selected sentence count and sentence-length range.
 
 SENTENCE LEVEL STYLE (STRICT TARGETS):
 Follow these rules for EVERY full target-language sentence based on 'sentenceLevelStyle':
@@ -65,18 +67,6 @@ Follow these rules for EVERY full target-language sentence based on 'sentenceLev
   - MUST be split into two meaningful halves for display/audio practice. The split halves should be meaningful and non-empty.
   - FORMAT: Provide 'target', 'native', 'targetFirstHalf', 'targetSecondHalf', 'nativeFirstHalf', and 'nativeSecondHalf'.
 
-LANGUAGE RULES:
-- ALWAYS put the target language in 'target' fields and native language in 'native' fields.
-- FOR FRENCH A1/A2: NEVER use Passé Simple. PREFER Present Tense or Passé Composé.
-- Use natural, adult-appropriate but learner-friendly vocabulary.
-
-VOCABULARY AND FLASHCARD RULES:
-- Pull the 'exampleSentenceTargetLanguage' from the generated story whenever possible.
-- The example sentence MUST contain the vocabulary word or phrase.
-- If the exact vocabulary word does not appear in the story, choose the closest sentence using the same word family.
-- If no example can be found in the story, show "No story example found."
-- All translations (native meaning and example sentence translation) MUST follow the literal translation rules below.
-
 INTERLINEAR TRANSLATION RULES:
 - Interlinear translations (nativeFirstHalf, nativeSecondHalf, and the 'native' field when used for interlinear) should be literal, transparent, and learner-facing.
 - Avoid overly literary or idiomatic native-language paraphrases when a clearer literal translation is possible.
@@ -87,6 +77,11 @@ INTERLINEAR TRANSLATION RULES:
   - "je viens de comprendre" -> "I just understood" (NOT "it dawned on me")
   - "il y a" -> "there is/there are"
   - "avoir besoin de" -> "to need" or "to have need of"
+
+LANGUAGE RULES:
+- ALWAYS put the target language in 'target' fields and native language in 'native' fields.
+- Use natural, adult-appropriate but learner-friendly vocabulary.
+- FOR FRENCH A1/A2: NEVER use Passé Simple. PREFER Present Tense or Passé Composé.
 
 CONTINUATION RULES:
 - If you are asked to 'CONTINUE' a chapter, do NOT repeat the story from the beginning.
@@ -114,12 +109,7 @@ OUTPUT FORMAT (JSON ONLY):
     }
   ],
   "vocabularyList": [
-    {
-      "termTargetLanguage": "target word",
-      "termNativeLanguage": "native meaning",
-      "exampleSentenceTargetLanguage": "sentence from the story containing the word",
-      "exampleSentenceNativeLanguage": "fairly literal translation of that sentence"
-    }
+    { "target": "word", "native": "meaning" }
   ]
 }
 `;

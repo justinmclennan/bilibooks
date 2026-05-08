@@ -29,26 +29,19 @@ const ttsClient = new textToSpeech.TextToSpeechClient();
 function calculateGenerationTargets(sentencesPerChapter, sentenceLevelStyle) {
   const styleConfig = {
     'pre-a1': { avg: 4, min: 3, max: 5 },
-    'a1': { avg: 6, min: 5, max: 7 },
-    'a2': { avg: 10.5, min: 8, max: 13 },
-    'b1': { avg: 16, min: 14, max: 20 }
+    'a1': { avg: 6.5, min: 5, max: 8 },
+    'a2': { avg: 11.5, min: 9, max: 14 },
+    'b1': { avg: 17, min: 14, max: 20 }
   };
 
   const config = styleConfig[sentenceLevelStyle] || styleConfig['a1'];
 
-  const targetSentenceCount = sentencesPerChapter;
+  const targetSentenceCount = parseInt(sentencesPerChapter) || 15;
   // Use a +/- 1 sentence tolerance
   const minSentenceCount = Math.max(1, targetSentenceCount - 1);
   const maxSentenceCount = targetSentenceCount + 1;
 
-  // Derive approximate word counts for reference/legacy display
-  const targetWords = targetSentenceCount * config.avg;
-  const minChapterWords = Math.floor(targetWords * 0.75);
-  const maxChapterWords = Math.ceil(targetWords * 1.25);
-
   return {
-    minChapterWords,
-    maxChapterWords,
     targetAverageSentenceWords: config.avg,
     targetSentenceCount,
     minSentenceCount,
@@ -69,11 +62,11 @@ function countTargetWords(chapterData) {
 }
 
 /**
- * Validates a chapter against proficiency-level constraints and word count targets.
+ * Validates a chapter against proficiency-level constraints and sentence counts.
  */
 function validateChapter(chapterData, targets, sentenceLevelStyle) {
-  const actualWordCount = countTargetWords(chapterData);
   const actualSentenceCount = chapterData.lines ? chapterData.lines.length : 0;
+  const actualWordCount = countTargetWords(chapterData);
 
   const tooFewSentences = actualSentenceCount < targets.minSentenceCount;
   const tooManySentences = actualSentenceCount > targets.maxSentenceCount;
@@ -82,24 +75,18 @@ function validateChapter(chapterData, targets, sentenceLevelStyle) {
 
   let lineViolations = [];
   let splitViolations = [];
-  let sentencesUnderMinCount = 0;
 
   if (!chapterData.lines) {
     return {
       valid: false,
       reasons: ["No lines generated"],
-      actualWordCount: 0,
       actualSentenceCount: 0,
-      sentencesUnderMinCount: 0,
       targets
     };
   }
 
   chapterData.lines.forEach((line, idx) => {
     const fullCount = (line.target || "").split(/\s+/).filter(w => w.length > 0).length;
-    if (fullCount < targets.minSentenceWords) {
-      sentencesUnderMinCount++;
-    }
     if (fullCount < targets.minSentenceWords || fullCount > targets.maxSentenceWords) {
       lineViolations.push(`Line ${idx + 1} has ${fullCount} words (Expected ${targets.minSentenceWords}-${targets.maxSentenceWords})`);
     }
@@ -130,10 +117,8 @@ function validateChapter(chapterData, targets, sentenceLevelStyle) {
     tooManySentences,
     tooManyLengthViolations,
     hasSplitViolations,
-    actualWordCount,
     actualSentenceCount,
-    averageSentenceLength: actualSentenceCount > 0 ? (actualWordCount / actualSentenceCount).toFixed(1) : 0,
-    sentencesUnderMinCount,
+    actualWordCount,
     lineViolations,
     splitViolations,
     targets
@@ -199,14 +184,17 @@ Target Language: ${targetLanguage}
 Base Language: ${baseLanguage}
 CEFR Level: ${level}
 Sentence Level Style: ${sentenceLevelStyle}
-Target Sentence Count: ${targets.minSentenceCount}-${targets.maxSentenceCount}
-Each ${targetLanguage} sentence must be ${targets.minSentenceWords}-${targets.maxSentenceWords} words.
+
+Write each chapter with approximately ${sentencesPerChapter} target-language sentences.
+Each target-language sentence should usually follow the selected words-per-sentence range: ${targets.minSentenceWords}-${targets.maxSentenceWords} words.
+Do not target a total word count per chapter. Instead, control chapter length by sentence count and sentence length.
+
 Chapter Info: ${JSON.stringify(chapterPlan)}
 Continuity Context: ${previousSummaries.join(' ')}
         `.trim();
 
         if (existingLines) {
-          prompt += `\n\nCONTINUE STORY: The chapter is currently too short. Here are the existing lines:\n${JSON.stringify(existingLines)}\n\nPlease CONTINUE the story starting from the last line and add more sentences to reach the target word count. DO NOT repeat the beginning of the story.`;
+          prompt += `\n\nCONTINUE STORY: The chapter is currently too short. Here are the existing lines:\n${JSON.stringify(existingLines)}\n\nPlease CONTINUE the story starting from the last line and add more sentences. DO NOT repeat the beginning of the story.`;
         }
 
         if (retryMessage) {
@@ -239,10 +227,7 @@ Continuity Context: ${previousSummaries.join(' ')}
       while (!validation.valid && repairAttempt < 2) {
         repairAttempt++;
         console.log(`Validation failed (Attempt ${repairAttempt}): ${validation.reasons.join(', ')}`);
-        console.log(`Actual target word count: ${validation.actualWordCount}`);
         console.log(`Actual sentence count: ${validation.actualSentenceCount}`);
-        console.log(`Average target words per sentence: ${validation.averageSentenceLength}`);
-        console.log(`Sentences under min words: ${validation.sentencesUnderMinCount}`);
         console.log(`Sentence length violations: ${validation.lineViolations.length}`);
 
         let correction = "";
@@ -275,10 +260,8 @@ Continuity Context: ${previousSummaries.join(' ')}
         validation = validateChapter(chapterData, targets, sentenceLevelStyle);
       }
 
-      console.log(`Final validation result for Ch ${chapterPlan.chapterNumber}: ${validation.valid ? 'PASSED' : 'FAILED'} (${validation.actualWordCount} words, ${validation.actualSentenceCount} sentences)`);
-      console.log(`Final word count: ${validation.actualWordCount}`);
+      console.log(`Final validation result for Ch ${chapterPlan.chapterNumber}: ${validation.valid ? 'PASSED' : 'FAILED'} (${validation.actualSentenceCount} sentences)`);
       console.log(`Final sentence count: ${validation.actualSentenceCount}`);
-      console.log(`Final average words per sentence: ${validation.averageSentenceLength}`);
 
       chapterData.estimatedTargetWordCount = validation.actualWordCount;
       chapterData.actualSentenceCount = validation.actualSentenceCount;
