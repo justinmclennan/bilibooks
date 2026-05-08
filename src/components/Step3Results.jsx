@@ -21,10 +21,9 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
   const contentVersions = useMemo(() => {
     if (!storyData || chapters.length === 0) return {};
     const configs = [
-      { id: 'interlinearTargetFirst', label: 'Interlinear (Target First)', mode: 'interlinear', targetFirst: true },
-      { id: 'interlinearNativeFirst', label: 'Interlinear (Native First)', mode: 'interlinear', targetFirst: false },
-      { id: 'shadow', label: 'Shadow Script', mode: 'shadow' },
-      { id: 'storyOnly', label: 'Story Only', mode: 'story' },
+      { id: 'storyOnly', label: 'STORY - Listen and/or Read', mode: 'story' },
+      { id: 'interlinearNativeFirst', label: `INTERLINEAR - Translate ${formData.baseLanguage} line to ${formData.targetLanguage} before the ${formData.targetLanguage} Speaker, then repeat after ${formData.targetLanguage} Speaker`, mode: 'interlinear', targetFirst: false },
+      { id: 'shadow', label: `SHADOW - Repeat after ${formData.targetLanguage} Speaker`, mode: 'shadow' },
     ];
 
     return configs.reduce((acc, config) => {

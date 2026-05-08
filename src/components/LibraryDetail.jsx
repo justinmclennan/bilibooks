@@ -210,24 +210,37 @@ const LibraryDetail = ({ storyId, onBack }) => {
              {activeTab === 'scripts' && (
                 <div className="space-y-lg animate-in slide-in-from-bottom-4 duration-300">
                   {story.contentVersions ? (
-                    Object.entries(story.contentVersions).map(([key, data]) => (
-                      <ScriptCard
-                        key={key}
-                        id={key}
-                        label={data.label}
-                        ssml={data.ssml}
-                        readable={data.readable}
-                        mode={data.mode}
-                        targetFirst={data.targetFirst}
-                        chapters={story.chapters}
-                        formData={story.formData || {
-                          targetLanguage: story.targetLanguage,
-                          baseLanguage: story.baseLanguage
-                        }}
-                        onCopy={copyToClipboard}
-                        onDownload={downloadFile}
-                      />
-                    ))
+                    ['storyOnly', 'interlinearNativeFirst', 'shadow']
+                      .filter(key => story.contentVersions[key])
+                      .map((key) => {
+                        const data = story.contentVersions[key];
+                        const target = story.targetLanguage || 'French';
+                        const base = story.baseLanguage || 'English';
+
+                        let displayLabel = data.label;
+                        if (key === 'storyOnly') displayLabel = 'STORY - Listen and/or Read';
+                        if (key === 'interlinearNativeFirst') displayLabel = `INTERLINEAR - Translate ${base} line to ${target} before the ${target} Speaker, then repeat after ${target} Speaker`;
+                        if (key === 'shadow') displayLabel = `SHADOW - Repeat after ${target} Speaker`;
+
+                        return (
+                          <ScriptCard
+                            key={key}
+                            id={key}
+                            label={displayLabel}
+                            ssml={data.ssml}
+                            readable={data.readable}
+                            mode={data.mode}
+                            targetFirst={data.targetFirst}
+                            chapters={story.chapters}
+                            formData={story.formData || {
+                              targetLanguage: story.targetLanguage,
+                              baseLanguage: story.baseLanguage
+                            }}
+                            onCopy={copyToClipboard}
+                            onDownload={downloadFile}
+                          />
+                        );
+                    })
                   ) : (
                     <div className="py-12 flex flex-col items-center justify-center bg-surface-container-lowest rounded-xl border border-dashed border-outline">
                       <span className="material-symbols-outlined text-4xl text-outline mb-4">description</span>
@@ -275,11 +288,13 @@ const LibraryDetail = ({ storyId, onBack }) => {
 
         <div className="md:col-span-4 space-y-lg">
            <div className="bg-white p-lg rounded-xl border border-outline-variant shadow-sm sticky top-4">
-              <h3 className="font-headline-sm text-headline-sm mb-lg">Export Files</h3>
+              <h3 className="font-headline-sm text-headline-sm mb-lg text-primary">Export Files</h3>
               <div className="space-y-md">
-                 {['interlinearTargetFirst', 'interlinearNativeFirst', 'shadow', 'storyOnly'].map(type => (
+                 {['storyOnly', 'interlinearNativeFirst', 'shadow'].map(type => (
                    <div key={type} className="flex flex-col gap-2 p-md bg-surface-container-low rounded-xl border border-outline-variant/30">
-                      <p className="font-label-caps text-[10px] text-on-surface-variant uppercase">{type.replace(/([A-Z])/g, ' $1')}</p>
+                      <p className="font-label-caps text-[10px] text-on-surface-variant uppercase">
+                        {type === 'storyOnly' ? 'Story' : type === 'interlinearNativeFirst' ? 'Interlinear' : 'Shadow'}
+                      </p>
                       <div className="flex gap-2">
                          <a
                            href={`/api/library/${storyId}/file/${type}.txt`}
