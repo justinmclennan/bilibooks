@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getStoryById } from '../utils/library';
+import { getStoryAddedWords, addWordToStory, removeWordFromStory } from '../utils/storyAddedWords';
 import ScriptCard from './ScriptCard';
 import Flashcard from './Flashcard';
 import ReadAlongPlayer from './ReadAlongPlayer';
@@ -10,9 +11,14 @@ const LibraryDetail = ({ storyId, onBack }) => {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('summary');
   const [storyViewMode, setStoryViewMode] = useState('target'); // 'target', 'native', 'bilingual'
+  const [addedWords, setAddedWords] = useState([]);
+  const [newWordTarget, setNewWordTarget] = useState('');
+  const [newWordNative, setNewWordNative] = useState('');
+  const [addMessage, setAddMessage] = useState({ text: '', type: '' });
 
   useEffect(() => {
     fetchStory();
+    setAddedWords(getStoryAddedWords(storyId));
   }, [storyId]);
 
   const fetchStory = async () => {
@@ -56,6 +62,38 @@ const LibraryDetail = ({ storyId, onBack }) => {
     URL.revokeObjectURL(url);
   };
 
+  const handleAddWord = (e) => {
+    e.preventDefault();
+    if (!newWordTarget.trim()) return;
+
+    const result = addWordToStory(storyId, newWordTarget.trim(), newWordNative.trim(), 'manual');
+    if (result.success) {
+      setAddedWords(prev => [...prev, result.word]);
+      setNewWordTarget('');
+      setNewWordNative('');
+      setAddMessage({ text: 'Word added!', type: 'success' });
+    } else {
+      setAddMessage({ text: result.message, type: 'error' });
+    }
+
+    setTimeout(() => setAddMessage({ text: '', type: '' }), 3000);
+  };
+
+  const handleRemoveWord = (wordId) => {
+    removeWordFromStory(wordId);
+    setAddedWords(prev => prev.filter(w => w.id !== wordId));
+  };
+
+  const handleWordClick = (word) => {
+    // Clean word: remove punctuation
+    const cleanWord = word.replace(/[.,!?;:()"]/g, '').trim();
+    if (!cleanWord) return;
+
+    setNewWordTarget(cleanWord);
+    // Focus the native input if possible, or just scroll to the form
+    document.getElementById('add-word-form')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-on-surface-variant gap-4 w-full">
@@ -93,7 +131,7 @@ const LibraryDetail = ({ storyId, onBack }) => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-lg">
-        <div className="md:col-span-8 space-y-lg">
+        <div className="md:col-span-8 space-y-lg" id="add-word-form">
           <div className="flex border-b border-outline-variant overflow-x-auto no-scrollbar bg-surface-container-lowest rounded-t-xl">
             {['summary', 'chapters', 'vocabulary', 'flashcards', 'scripts', 'audio'].map((tab) => (
               <button
@@ -166,7 +204,17 @@ const LibraryDetail = ({ storyId, onBack }) => {
                           {chapter.lines?.map((line, idx) => (
                             <div key={idx} className="group space-y-1">
                               {(storyViewMode === 'target' || storyViewMode === 'bilingual') && (
-                                <p className="font-body-lg text-on-surface font-semibold group-hover:text-primary transition-colors">{line.target}</p>
+                                <p className="font-body-lg text-on-surface font-semibold group-hover:text-primary transition-colors">
+                                  {line.target.split(' ').map((word, wIdx) => (
+                                    <span
+                                      key={wIdx}
+                                      onClick={() => handleWordClick(word)}
+                                      className="cursor-pointer hover:bg-primary/10 hover:text-primary rounded px-0.5 transition-colors"
+                                    >
+                                      {word}{' '}
+                                    </span>
+                                  ))}
+                                </p>
                               )}
                               {(storyViewMode === 'native' || storyViewMode === 'bilingual') && (
                                 <p className="font-body-md text-on-surface-variant italic">{line.native}</p>
@@ -203,7 +251,16 @@ const LibraryDetail = ({ storyId, onBack }) => {
 
              {activeTab === 'flashcards' && (
                <div className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm animate-in slide-in-from-bottom-4 duration-300 min-h-[500px] flex flex-col justify-center">
-                  <Flashcard vocabulary={story.vocabulary} />
+                  <Flashcard vocabulary={[
+                    ...(story.vocabulary || []),
+                    ...addedWords.map(w => ({
+                      id: w.id,
+                      target: w.targetWord,
+                      native: w.nativeWord,
+                      exampleSentenceTargetLanguage: null,
+                      exampleSentenceNativeLanguage: null
+                    }))
+                  ]} />
                </div>
              )}
 
@@ -274,6 +331,72 @@ const LibraryDetail = ({ storyId, onBack }) => {
         </div>
 
         <div className="md:col-span-4 space-y-lg">
+           <div className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm">
+              <h3 className="font-headline-sm text-headline-sm mb-4 flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">add_circle</span>
+                Add Word to Flashcards
+              </h3>
+              <form onSubmit={handleAddWord} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest pl-1">Target Language (French)</label>
+                  <input
+                    type="text"
+                    value={newWordTarget}
+                    onChange={(e) => setNewWordTarget(e.target.value)}
+                    placeholder="e.g. accueillir"
+                    className="w-full bg-surface-container-low border-outline-variant rounded-xl py-2 px-4 text-sm focus:ring-2 focus:ring-primary outline-none transition-all"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest pl-1">English Meaning (Optional)</label>
+                  <input
+                    type="text"
+                    value={newWordNative}
+                    onChange={(e) => setNewWordNative(e.target.value)}
+                    placeholder="e.g. to welcome"
+                    className="w-full bg-surface-container-low border-outline-variant rounded-xl py-2 px-4 text-sm focus:ring-2 focus:ring-primary outline-none transition-all"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={!newWordTarget.trim()}
+                  className="w-full bg-primary text-on-primary py-2 rounded-xl font-bold text-sm shadow-md hover:bg-primary/90 transition-all disabled:opacity-50"
+                >
+                  Add Word
+                </button>
+              </form>
+              {addMessage.text && (
+                <div className={`mt-4 p-2 text-center text-xs font-bold rounded-lg ${addMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-error-container text-on-error-container'}`}>
+                  {addMessage.text}
+                </div>
+              )}
+           </div>
+
+           {addedWords.length > 0 && (
+             <div className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm">
+                <h3 className="font-headline-sm text-headline-sm mb-4 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-secondary">inventory_2</span>
+                  Words added from this chapter
+                </h3>
+                <div className="space-y-2">
+                  {addedWords.map(word => (
+                    <div key={word.id} className="flex items-center justify-between p-2 bg-surface-container-low rounded-lg border border-outline-variant/30 group">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold text-primary">{word.targetWord}</span>
+                        {word.nativeWord && <span className="text-[10px] text-on-surface-variant font-medium">— {word.nativeWord}</span>}
+                      </div>
+                      <button
+                        onClick={() => handleRemoveWord(word.id)}
+                        className="text-on-surface-variant hover:text-error opacity-0 group-hover:opacity-100 transition-all"
+                      >
+                        <span className="material-symbols-outlined text-sm">delete</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+             </div>
+           )}
+
            <div className="bg-white p-lg rounded-xl border border-outline-variant shadow-sm sticky top-4">
               <h3 className="font-headline-sm text-headline-sm mb-lg">Export Files</h3>
               <div className="space-y-md">

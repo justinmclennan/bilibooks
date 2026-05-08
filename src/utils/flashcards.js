@@ -1,4 +1,5 @@
 import { getLibrary } from './library';
+import { getAllStoryAddedWords } from './storyAddedWords';
 
 const FLASHCARDS_STATUS_KEY = 'linguStory_flashcards_status';
 
@@ -13,7 +14,20 @@ export const getGlobalFlashcards = () => {
 
   library.forEach(story => {
     const vocab = story.vocabulary || [];
-    vocab.forEach(item => {
+    const addedWords = getAllStoryAddedWords().filter(w => w.storyId === story.id);
+
+    const combinedVocab = [
+      ...vocab,
+      ...addedWords.map(w => ({
+        id: w.id,
+        target: w.targetWord,
+        native: w.nativeWord,
+        exampleSentenceTargetLanguage: null,
+        exampleSentenceNativeLanguage: null
+      }))
+    ];
+
+    combinedVocab.forEach(item => {
       // Handle both old and new formats
       const termTarget = item.termTargetLanguage || item.target;
       const termNative = item.termNativeLanguage || item.native;
