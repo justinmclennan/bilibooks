@@ -23,6 +23,13 @@ const BottomNavBar = ({ onNavigate, activeView }) => {
         <span className="material-symbols-outlined">quiz</span>
         <span className="font-headline-sm text-[10px] font-semibold uppercase tracking-wider">Flashcards</span>
       </div>
+      <div
+        onClick={() => onNavigate('vocabulary')}
+        className={`flex flex-col items-center justify-center ${activeView === 'vocabulary' ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' : 'text-slate-400 dark:text-slate-500'} rounded-2xl px-5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 active:scale-90 transition-all duration-200 ease-out cursor-pointer`}
+      >
+        <span className="material-symbols-outlined">checklist</span>
+        <span className="font-headline-sm text-[10px] font-semibold uppercase tracking-wider">Vocab</span>
+      </div>
       <div className="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 px-5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 active:scale-90 transition-all duration-200 ease-out">
         <span className="material-symbols-outlined">settings</span>
         <span className="font-headline-sm text-[10px] font-semibold uppercase tracking-wider">Settings</span>
