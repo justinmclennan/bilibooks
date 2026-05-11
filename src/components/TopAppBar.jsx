@@ -28,6 +28,12 @@ const TopAppBar = ({ onNavigate, activeView }) => {
           >
             Flashcards
           </button>
+          <button
+            onClick={() => onNavigate('vocabulary')}
+            className={`${activeView === 'vocabulary' ? 'text-blue-600 dark:text-blue-400 font-bold border-b-2 border-blue-600' : 'text-slate-500 dark:text-slate-400'} font-headline-sm text-sm font-medium transition-colors duration-200`}
+          >
+            Vocab
+          </button>
         </div>
         <div className="flex items-center space-x-4">
           <span className="material-symbols-outlined text-on-surface-variant cursor-pointer active:scale-95 transition-transform">language</span>

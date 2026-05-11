@@ -1,0 +1,81 @@
+category,nativeWord,targetWord,partOfSpeech
+connectors,however,cependant,connector
+connectors,nevertheless,néanmoins,connector
+connectors,furthermore,de plus,connector
+connectors,on the other hand,en revanche,connector
+connectors,therefore,par conséquent,connector
+connectors,whereas,tandis que,connector
+connectors,otherwise,sinon,connector
+connectors,despite,malgré,preposition
+connectors,in order to,afin de,preposition
+connectors,since / because,puisque,conjunction
+verbs,to realize,se rendre compte,verb
+verbs,to take place,avoir lieu,verb
+verbs,to need,avoir besoin de,verb
+verbs,to be about,s'agir de,verb
+verbs,to expect,s'attendre à,verb
+verbs,to trust,faire confiance à,verb
+verbs,to manage to,réussir à,verb
+verbs,to start doing,se mettre à,verb
+verbs,to improve,améliorer,verb
+verbs,to prevent,empêcher,verb
+verbs,to demand,exiger,verb
+verbs,to support,soutenir,verb
+verbs,to avoid,éviter,verb
+verbs,to happen,se passer,verb
+verbs,to warn,avertir,verb
+emotions,disappointed,déçu,adjective
+emotions,surprised,étonné,adjective
+emotions,worried,inquiet,adjective
+emotions,proud,fier,adjective
+emotions,angry,en colère,adjective
+emotions,exhausted,épuisé,adjective
+emotions,overwhelmed,accablé,adjective
+emotions,embarrassed,gêné,adjective
+emotions,relieved,soulagé,adjective
+emotions,hopeful,plein d'espoir,adjective
+nouns,challenge,le défi,noun
+nouns,goal,le but,noun
+nouns,advantage,l'avantage,noun
+nouns,disadvantage,l'inconvénient,noun
+nouns,success,le succès,noun
+nouns,failure,l'échec,noun
+nouns,growth,la croissance,noun
+nouns,environment,l'environnement,noun
+nouns,opinion,un avis,noun
+nouns,experience,une expérience,noun
+travel,abroad,à l'étranger,adverb
+travel,luggage,les bagages,noun
+travel,flight,le vol,noun
+travel,to book,réserver,verb
+travel,to land,atterrir,verb
+travel,to take off,décoller,verb
+travel,journey,le trajet,noun
+travel,abroad,l'étranger,noun
+home,furniture,les meubles,noun
+home,neighbor,le voisin,noun
+home,appliance,un appareil ménager,noun
+home,rent,le loyer,noun
+home,neighborhood,le quartier,noun
+home,accommodation,un logement,noun
+work,internship,un stage,noun
+work,unemployment,le chômage,noun
+work,skill,une compétence,noun
+work,application,une candidature,noun
+work,salary,le salaire,noun
+work,company,une entreprise,noun
+work,promotion,une promotion,noun
+school,degree,un diplôme,noun
+school,knowledge,les connaissances,noun
+school,to attend,assister à,verb
+school,field of study,une filière,noun
+school,learning,l'apprentissage,noun
+school,exam,une épreuve,noun
+school,scholarship,une bourse,noun
+food,organic,biologique,adjective
+food,tasty,savoureux,adjective
+food,meal,le repas,noun
+food,grocery shopping,les courses,noun
+food,healthy,sain,adjective
+food,spicy,épicé,adjective
+food,local,local,adjective

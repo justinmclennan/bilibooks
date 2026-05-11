@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { getGlobalFlashcards, updateFlashcardStatus } from '../utils/flashcards';
+import { getGlobalFlashcards, updateFlashcardStatus, deleteFlashcard } from '../utils/flashcards';
 import Flashcard from './Flashcard';
 
 const GlobalFlashcardLibrary = () => {
@@ -59,6 +59,13 @@ const GlobalFlashcardLibrary = () => {
   const handleUpdateStatus = (cardId, newStatus) => {
     updateFlashcardStatus(cardId, newStatus);
     loadFlashcards(); // Reload to update UI
+  };
+
+  const handleDeleteCard = (cardId, term) => {
+    if (window.confirm(`Delete flashcard for "${term}"? This cannot be undone.`)) {
+      deleteFlashcard(cardId);
+      loadFlashcards();
+    }
   };
 
   if (reviewMode) {
@@ -199,7 +206,16 @@ const GlobalFlashcardLibrary = () => {
                 }`}>
                   {card.reviewStatus.replace(/([A-Z])/g, ' $1')}
                 </span>
-                <span className="text-[10px] font-bold text-on-surface-variant/60 uppercase">{card.targetLanguage}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-on-surface-variant/60 uppercase">{card.targetLanguage}</span>
+                  <button
+                    onClick={() => handleDeleteCard(card.id, card.termTargetLanguage)}
+                    className="text-on-surface-variant hover:text-error transition-colors"
+                    title="Delete Flashcard"
+                  >
+                    <span className="material-symbols-outlined text-sm">delete</span>
+                  </button>
+                </div>
               </div>
               <h3 className="text-xl font-bold text-primary mb-1">{card.termTargetLanguage}</h3>
               <p className="text-on-surface font-semibold mb-4">{card.termNativeLanguage}</p>

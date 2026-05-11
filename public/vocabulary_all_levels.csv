@@ -1,0 +1,173 @@
+level,category,nativeWord,targetWord,partOfSpeech
+Pre-A1,basics,hello,bonjour,expression
+Pre-A1,basics,goodbye,au revoir,expression
+Pre-A1,basics,yes,oui,particle
+Pre-A1,basics,no,non,particle
+Pre-A1,basics,please,s'il vous plaît,expression
+Pre-A1,basics,thank you,merci,expression
+Pre-A1,basics,pardon me,pardon,expression
+Pre-A1,basics,good morning,bonjour,expression
+Pre-A1,basics,good evening,bonsoir,expression
+Pre-A1,people,man,un homme,noun
+Pre-A1,people,woman,une femme,noun
+Pre-A1,people,boy,un garçon,noun
+Pre-A1,people,girl,une fille,noun
+Pre-A1,people,friend,un ami,noun
+Pre-A1,nature,cat,un chat,noun
+Pre-A1,nature,dog,un chien,noun
+Pre-A1,nature,water,eau,noun
+Pre-A1,nature,sun,le soleil,noun
+Pre-A1,objects,book,un livre,noun
+Pre-A1,objects,car,une voiture,noun
+A1,verbs,to eat,manger,verb
+A1,verbs,to drink,boire,verb
+A1,verbs,to sleep,dormir,verb
+A1,verbs,to speak,parler,verb
+A1,verbs,to go,aller,verb
+A1,verbs,to do,faire,verb
+A1,verbs,to have,avoir,verb
+A1,verbs,to be,être,verb
+A1,colors,red,rouge,adjective
+A1,colors,blue,bleu,adjective
+A1,colors,green,vert,adjective
+A1,colors,yellow,jaune,adjective
+A1,colors,black,noir,adjective
+A1,colors,white,blanc,adjective
+A1,numbers,one,un,number
+A1,numbers,two,deux,number
+A1,numbers,three,trois,number
+A1,family,mother,la mère,noun
+A1,family,father,le père,noun
+A1,family,brother,le frère,noun
+A1,family,sister,la sœur,noun
+A2,verbs,to finish,finir,verb
+A2,verbs,to choose,choisir,verb
+A2,verbs,to wait,attendre,verb
+A2,verbs,to sell,vendre,verb
+A2,verbs,to understand,comprendre,verb
+A2,verbs,to learn,apprendre,verb
+A2,verbs,to travel,voyager,verb
+A2,verbs,to work,travailler,verb
+A2,travel,train station,la gare,noun
+A2,travel,airport,l'aéroport,noun
+A2,travel,ticket,un billet,noun
+A2,travel,hotel,un hôtel,noun
+A2,travel,vacation,les vacances,noun
+A2,daily,to wake up,se réveiller,verb
+A2,daily,to get dressed,s'habiller,verb
+A2,daily,to brush teeth,se brosser les dents,verb
+A2,daily,to have breakfast,prendre le petit déjeuner,verb
+A2,food,bread,le pain,noun
+A2,food,cheese,le fromage,noun
+A2,food,wine,le vin,noun
+A2,food,fruit,un fruit,noun
+B1,connectors,however,cependant,connector
+B1,connectors,nevertheless,néanmoins,connector
+B1,connectors,furthermore,de plus,connector
+B1,connectors,on the other hand,en revanche,connector
+B1,connectors,therefore,par conséquent,connector
+B1,connectors,whereas,tandis que,connector
+B1,connectors,otherwise,sinon,connector
+B1,connectors,despite,malgré,preposition
+B1,connectors,in order to,afin de,preposition
+B1,connectors,since / because,puisque,conjunction
+B1,verbs,to realize,se rendre compte,verb
+B1,verbs,to take place,avoir lieu,verb
+B1,verbs,to need,avoir besoin de,verb
+B1,verbs,to be about,s'agir de,verb
+B1,verbs,to expect,s'attendre à,verb
+B1,verbs,to trust,faire confiance à,verb
+B1,verbs,to manage to,réussir à,verb
+B1,verbs,to start doing,se mettre à,verb
+B1,verbs,to improve,améliorer,verb
+B1,verbs,to prevent,empêcher,verb
+B1,verbs,to demand,exiger,verb
+B1,verbs,to support,soutenir,verb
+B1,verbs,to avoid,éviter,verb
+B1,verbs,to happen,se passer,verb
+B1,verbs,to warn,avertir,verb
+B1,emotions,disappointed,déçu,adjective
+B1,emotions,surprised,étonné,adjective
+B1,emotions,worried,inquiet,adjective
+B1,emotions,proud,fier,adjective
+B1,emotions,angry,en colère,adjective
+B1,emotions,exhausted,épuisé,adjective
+B1,emotions,overwhelmed,accablé,adjective
+B1,emotions,embarrassed,gêné,adjective
+B1,emotions,relieved,soulagé,adjective
+B1,emotions,hopeful,plein d'espoir,adjective
+B1,nouns,challenge,le défi,noun
+B1,nouns,goal,le but,noun
+B1,nouns,advantage,l'avantage,noun
+B1,nouns,disadvantage,l'inconvénient,noun
+B1,nouns,success,le succès,noun
+B1,nouns,failure,l'échec,noun
+B1,nouns,growth,la croissance,noun
+B1,nouns,environment,l'environnement,noun
+B1,nouns,opinion,un avis,noun
+B1,nouns,experience,une expérience,noun
+B1,travel,abroad,à l'étranger,adverb
+B1,travel,luggage,les bagages,noun
+B1,travel,flight,le vol,noun
+B1,travel,to book,réserver,verb
+B1,travel,to land,atterrir,verb
+B1,travel,to take off,décoller,verb
+B1,travel,journey,le trajet,noun
+B1,travel,abroad,l'étranger,noun
+B1,home,furniture,les meubles,noun
+B1,home,neighbor,le voisin,noun
+B1,home,appliance,un appareil ménager,noun
+B1,home,rent,le loyer,noun
+B1,home,neighborhood,le quartier,noun
+B1,home,accommodation,un logement,noun
+B1,work,internship,un stage,noun
+B1,work,unemployment,le chômage,noun
+B1,work,skill,une compétence,noun
+B1,work,application,une candidature,noun
+B1,work,salary,le salaire,noun
+B1,work,company,une entreprise,noun
+B1,work,promotion,une promotion,noun
+B1,school,degree,un diplôme,noun
+B1,school,knowledge,les connaissances,noun
+B1,school,to attend,assister à,verb
+B1,school,field of study,une filière,noun
+B1,school,learning,l'apprentissage,noun
+B1,school,exam,une épreuve,noun
+B1,school,scholarship,une bourse,noun
+B1,food,organic,biologique,adjective
+B1,food,tasty,savoureux,adjective
+B1,food,meal,le repas,noun
+B1,food,grocery shopping,les courses,noun
+B1,food,healthy,sain,adjective
+B1,food,spicy,épicé,adjective
+B1,food,local,local,adjective
+B2,verbs,to call into question,remettre en question,verb
+B2,verbs,to trigger,déclencher,verb
+B2,verbs,to emphasize,souligner,verb
+B2,verbs,to claim,prétendre,verb
+B2,verbs,to imply,impliquer,verb
+B2,verbs,to achieve,accomplir,verb
+B2,verbs,to grant,accorder,verb
+B2,verbs,to maintain,maintenir,verb
+B2,verbs,to overcome,surmonter,verb
+B2,verbs,to support (evidence),étayer,verb
+B2,abstract,paradox,un paradoxe,noun
+B2,abstract,nuance,une nuance,noun
+B2,abstract,consequence,une conséquence,noun
+B2,abstract,perspective,une perspective,noun
+B2,abstract,dilemma,un dilemme,noun
+B2,abstract,hypothesis,une hypothèse,noun
+B2,abstract,consensus,un consensus,noun
+B2,abstract,controversy,une controverse,noun
+B2,abstract,ambiguity,une ambiguïté,noun
+B2,abstract,relevance,la pertinence,noun
+B2,adjectives,paradoxical,paradoxal,adjective
+B2,adjectives,rigorous,rigoureux,adjective
+B2,adjectives,ambiguous,ambigu,adjective
+B2,adjectives,consistent,cohérent,adjective
+B2,adjectives,effective,efficace,adjective
+B2,adjectives,sustainable,durable,adjective
+B2,adjectives,vulnerable,vulnérable,adjective
+B2,adjectives,profound,profond,adjective
+B2,adjectives,implicit,implicite,adjective
+B2,adjectives,explicit,explicite,adjective

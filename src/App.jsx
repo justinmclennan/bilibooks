@@ -8,9 +8,10 @@ import Step3Results from './components/Step3Results';
 import Library from './components/Library';
 import LibraryDetail from './components/LibraryDetail';
 import GlobalFlashcardLibrary from './components/GlobalFlashcardLibrary';
+import MyVocabulary from './components/MyVocabulary';
 
 function App() {
-  const [activeView, setActiveTab] = useState('wizard'); // 'wizard', 'library', or 'flashcards'
+  const [activeView, setActiveTab] = useState('wizard'); // 'wizard', 'library', 'flashcards', or 'vocabulary'
   const [selectedLibraryStoryId, setSelectedLibraryStoryId] = useState(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -87,6 +88,18 @@ function App() {
     setActiveTab('wizard');
   };
 
+  const handleUseVocabularyInStory = (selectedWords, level) => {
+    const vocabString = selectedWords.map(w => w.targetWord).join(', ');
+    setFormData(prev => ({
+      ...prev,
+      level: level || 'B1',
+      sentenceLevelStyle: (level || 'B1').toLowerCase(),
+      vocabulary: vocabString
+    }));
+    setActiveTab('wizard');
+    setCurrentStep(2);
+  };
+
   return (
     <div className="min-h-screen flex flex-col font-body-md text-on-background bg-background">
       <TopAppBar onNavigate={setActiveTab} activeView={activeView} />
@@ -102,6 +115,15 @@ function App() {
 
         {activeView === 'flashcards' && (
           <GlobalFlashcardLibrary />
+        )}
+
+        {activeView === 'vocabulary' && (
+          <MyVocabulary
+            onUseSelectedWords={handleUseVocabularyInStory}
+            targetLanguage={formData.targetLanguage}
+            nativeLanguage={formData.baseLanguage}
+            currentLevel={formData.level}
+          />
         )}
 
         {activeView === 'wizard' && currentStep === 1 && (

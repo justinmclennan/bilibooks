@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getLibrary } from '../utils/library';
+import { getLibrary, deleteStory } from '../utils/library';
 
 const Library = ({ onViewDetails }) => {
   const [stories, setStories] = useState([]);
@@ -20,6 +20,13 @@ const Library = ({ onViewDetails }) => {
       setError('Could not load your library.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDelete = (id, title) => {
+    if (window.confirm(`Delete "${title}"? This cannot be undone.`)) {
+      deleteStory(id);
+      fetchLibrary();
     }
   };
 
@@ -96,10 +103,17 @@ const Library = ({ onViewDetails }) => {
               <div className="p-md bg-surface-container-low border-t border-outline-variant flex gap-2">
                 <button
                   onClick={() => onViewDetails(story.id)}
-                  className="flex-grow bg-primary text-on-primary py-2.5 rounded-lg font-label-caps text-xs flex items-center justify-center gap-2 hover:bg-primary-container transition-all"
+                  className="flex-grow bg-primary text-on-primary py-2.5 rounded-lg font-label-caps text-xs flex items-center justify-center gap-2 hover:bg-primary/90 transition-all shadow-sm"
                 >
                   <span className="material-symbols-outlined text-sm">open_in_new</span>
-                  Open Story
+                  Open
+                </button>
+                <button
+                  onClick={() => handleDelete(story.id, story.title)}
+                  className="px-3 bg-error-container text-on-error-container rounded-lg flex items-center justify-center hover:bg-error/10 transition-all border border-error/20"
+                  title="Delete Story"
+                >
+                  <span className="material-symbols-outlined text-sm">delete</span>
                 </button>
                 {(story.audioFiles?.length > 0 || story.contentVersions) && (
                   <div className="px-3 bg-secondary/10 text-secondary rounded-lg flex items-center justify-center" title="Has Audio/Scripts">

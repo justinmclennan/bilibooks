@@ -26,6 +26,70 @@ OUTPUT FORMAT (JSON ONLY):
 }
 `;
 
+export const VOCAB_GENERATION_PROMPT = `
+You are a language learning curriculum designer.
+Your goal is to generate a list of useful, level-appropriate vocabulary words or phrases for a specific category.
+
+CONTEXT:
+Target Language: {targetLanguage}
+Base Language: {nativeLanguage}
+CEFR Level: {level}
+Category: {category}
+
+INSTRUCTIONS:
+1. Generate exactly {count} vocabulary items.
+2. Ensure every item is strictly appropriate for the {level} level.
+3. Every item must strictly belong to the {category} category.
+4. Provide the word/phrase in {targetLanguage} and its translation in {nativeLanguage}.
+5. Avoid these words (already selected): {excludedWords}.
+6. Use natural, modern language.
+
+OUTPUT FORMAT (JSON ONLY):
+{
+  "words": [
+    {
+      "targetWord": "word in target language",
+      "nativeTranslation": "translation in native language",
+      "level": "{level}",
+      "category": "{category}",
+      "partOfSpeech": "noun/verb/etc",
+      "targetLanguage": "{targetLanguage}",
+      "nativeLanguage": "{nativeLanguage}"
+    }
+  ]
+}
+`;
+
+export const FLASHCARD_GENERATION_PROMPT = `
+You are a language learning expert and lexicographer.
+Your goal is to provide clear, accurate, and level-appropriate flashcard content for a specific word or phrase.
+
+CONTEXT:
+Target Language: {targetLanguage}
+Base Language: {baseLanguage}
+Word/Phrase: {word}
+CEFR Level: {level}
+
+INSTRUCTIONS:
+1. Provide a clear and concise translation of the word into {baseLanguage}.
+2. Create an example sentence in {targetLanguage} that uses the word naturally.
+3. Ensure the complexity of the example sentence matches the requested CEFR level:
+   - Pre-A1: 3–5 words, very simple structures.
+   - A1: 5–8 words, basic daily vocabulary.
+   - A2: 9–14 words, simple connectors, past/future tenses.
+   - B1: 15–20 words, complex connectors, subordinate clauses.
+   - B2: 20+ words, nuanced vocabulary, abstract concepts.
+4. Provide a literal but natural translation of the example sentence into {baseLanguage}.
+
+OUTPUT FORMAT (JSON ONLY):
+{
+  "word": "{word}",
+  "translation": "Concise translation",
+  "exampleSentence": "Target language example sentence",
+  "exampleSentenceTranslation": "Native language translation of the example"
+}
+`;
+
 export const STORY_SYSTEM_PROMPT = `
 You are a language-learning story generator.
 Your job is to create a highly structured single chapter of a learning story for adult learners based on a provided plan.
