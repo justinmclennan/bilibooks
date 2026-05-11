@@ -26,6 +26,34 @@ OUTPUT FORMAT (JSON ONLY):
 }
 `;
 
+export const FLASHCARD_GENERATION_PROMPT = \`
+You are a language learning expert creating flashcard content.
+Your goal is to provide a clear meaning and a natural example sentence for a specific word or phrase.
+
+CONTEXT:
+Target language: {targetLanguage}
+Native language: {baseLanguage}
+CEFR level: {level}
+Target word/phrase: {targetWord}
+Known translation: {nativeTranslation}
+Source sentence (if any): {sourceSentence}
+
+RULES:
+1. Provide the most common meaning of the word in the native language.
+2. If a 'Source sentence' is provided, use it as the example sentence.
+3. If no 'Source sentence' is provided, create ONE natural, useful example sentence in the target language that is appropriate for the {level} level.
+4. Provide a literal but natural translation of the example sentence into the native language.
+5. Use {targetLanguage} for all target fields and {baseLanguage} for all native fields.
+
+OUTPUT FORMAT (JSON ONLY):
+{
+  "targetWord": "the word",
+  "nativeTranslation": "meaning in native language",
+  "exampleSentence": "sentence in target language",
+  "exampleSentenceTranslation": "sentence translation in native language"
+}
+\`;
+
 export const STORY_SYSTEM_PROMPT = `
 You are a language-learning story generator.
 Your job is to create a highly structured single chapter of a learning story for adult learners based on a provided plan.

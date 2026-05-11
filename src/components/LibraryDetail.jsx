@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getStoryById } from '../utils/library';
+import { getStoryById, deleteStory } from '../utils/library';
 import { getStoryAddedWords, addWordToStory, removeWordFromStory } from '../utils/storyAddedWords';
 import ScriptCard from './ScriptCard';
 import Flashcard from './Flashcard';
@@ -15,6 +15,8 @@ const LibraryDetail = ({ storyId, onBack }) => {
   const [newWordTarget, setNewWordTarget] = useState('');
   const [newWordNative, setNewWordNative] = useState('');
   const [addMessage, setAddMessage] = useState({ text: '', type: '' });
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [sourceSentence, setSourceSentence] = useState(null);
 
   useEffect(() => {
     fetchStory();
@@ -62,21 +64,81 @@ const LibraryDetail = ({ storyId, onBack }) => {
     URL.revokeObjectURL(url);
   };
 
-  const handleAddWord = (e) => {
+  const handleDeleteStory = async () => {
+    if (window.confirm('Delete this story? This cannot be undone.')) {
+      await deleteStory(storyId);
+      onBack();
+    }
+  };
+
+  const handleAddWord = async (e) => {
     e.preventDefault();
     if (!newWordTarget.trim()) return;
 
-    const result = addWordToStory(storyId, newWordTarget.trim(), newWordNative.trim(), 'manual');
-    if (result.success) {
-      setAddedWords(prev => [...prev, result.word]);
-      setNewWordTarget('');
-      setNewWordNative('');
-      setAddMessage({ text: 'Word added!', type: 'success' });
-    } else {
-      setAddMessage({ text: result.message, type: 'error' });
-    }
+    setIsGenerating(true);
+    setAddMessage({ text: 'Generating context...', type: 'info' });
 
-    setTimeout(() => setAddMessage({ text: '', type: '' }), 3000);
+    try {
+      const response = await fetch('/api/generate-flashcard-context', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetWord: newWordTarget.trim(),
+          nativeTranslation: newWordNative.trim(),
+          targetLanguage: story.targetLanguage,
+          baseLanguage: story.baseLanguage,
+          level: story.level,
+          sourceSentence: sourceSentence?.target || null
+        })
+      });
+
+      let finalTargetWord = newWordTarget.trim();
+      let finalNativeWord = newWordNative.trim();
+      let exampleTarget = sourceSentence?.target || null;
+      let exampleNative = sourceSentence?.native || null;
+
+      if (response.ok) {
+        const data = await response.json();
+        finalNativeWord = data.nativeTranslation || finalNativeWord;
+        exampleTarget = data.exampleSentence || exampleTarget;
+        exampleNative = data.exampleSentenceTranslation || exampleNative;
+      }
+
+      const result = addWordToStory(
+        storyId,
+        finalTargetWord,
+        finalNativeWord,
+        'manual',
+        exampleTarget,
+        exampleNative
+      );
+
+      if (result.success) {
+        setAddedWords(prev => [...prev, result.word]);
+        setNewWordTarget('');
+        setNewWordNative('');
+        setSourceSentence(null);
+        setAddMessage({ text: 'Word added!', type: 'success' });
+      } else {
+        setAddMessage({ text: result.message, type: 'error' });
+      }
+    } catch (err) {
+      console.error(err);
+      // Still try to add even if AI fails
+      const result = addWordToStory(storyId, newWordTarget.trim(), newWordNative.trim(), 'manual');
+      if (result.success) {
+        setAddedWords(prev => [...prev, result.word]);
+        setNewWordTarget('');
+        setNewWordNative('');
+        setSourceSentence(null);
+        setAddMessage({ text: 'Word added (without context)!', type: 'success' });
+      } else {
+        setAddMessage({ text: 'Failed to add word.', type: 'error' });
+      }
+    } finally {
+      setIsGenerating(false);
+      setTimeout(() => setAddMessage({ text: '', type: '' }), 3000);
+    }
   };
 
   const handleRemoveWord = (wordId) => {
@@ -84,12 +146,13 @@ const LibraryDetail = ({ storyId, onBack }) => {
     setAddedWords(prev => prev.filter(w => w.id !== wordId));
   };
 
-  const handleWordClick = (word) => {
+  const handleWordClick = (word, line) => {
     // Clean word: remove punctuation
     const cleanWord = word.replace(/[.,!?;:()"]/g, '').trim();
     if (!cleanWord) return;
 
     setNewWordTarget(cleanWord);
+    setSourceSentence(line);
     // Focus the native input if possible, or just scroll to the form
     document.getElementById('add-word-form')?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -122,12 +185,19 @@ const LibraryDetail = ({ storyId, onBack }) => {
         >
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
-        <div>
+        <div className="flex-grow">
           <h1 className="font-headline-lg text-headline-lg text-on-surface line-clamp-1">{story.title}</h1>
           <p className="text-on-surface-variant font-body-sm uppercase tracking-widest font-bold">
             {story.targetLanguage} • {story.level} • {story.chapterCount} Chapters
           </p>
         </div>
+        <button
+          onClick={handleDeleteStory}
+          className="p-2 text-on-surface-variant hover:text-error transition-colors material-symbols-outlined"
+          title="Delete Story"
+        >
+          delete
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-lg">
@@ -208,7 +278,7 @@ const LibraryDetail = ({ storyId, onBack }) => {
                                   {line.target.split(' ').map((word, wIdx) => (
                                     <span
                                       key={wIdx}
-                                      onClick={() => handleWordClick(word)}
+                                      onClick={() => handleWordClick(word, line)}
                                       className="cursor-pointer hover:bg-primary/10 hover:text-primary rounded px-0.5 transition-colors"
                                     >
                                       {word}{' '}
@@ -257,8 +327,8 @@ const LibraryDetail = ({ storyId, onBack }) => {
                       id: w.id,
                       target: w.targetWord,
                       native: w.nativeWord,
-                      exampleSentenceTargetLanguage: null,
-                      exampleSentenceNativeLanguage: null
+                      exampleSentenceTargetLanguage: w.exampleSentenceTargetLanguage,
+                      exampleSentenceNativeLanguage: w.exampleSentenceNativeLanguage
                     }))
                   ]} />
                </div>
@@ -359,14 +429,19 @@ const LibraryDetail = ({ storyId, onBack }) => {
                 </div>
                 <button
                   type="submit"
-                  disabled={!newWordTarget.trim()}
-                  className="w-full bg-primary text-on-primary py-2 rounded-xl font-bold text-sm shadow-md hover:bg-primary/90 transition-all disabled:opacity-50"
+                  disabled={!newWordTarget.trim() || isGenerating}
+                  className="w-full bg-primary text-on-primary py-2 rounded-xl font-bold text-sm shadow-md hover:bg-primary/90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  Add Word
+                  {isGenerating && <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>}
+                  {isGenerating ? 'Generating...' : 'Add Word'}
                 </button>
               </form>
               {addMessage.text && (
-                <div className={`mt-4 p-2 text-center text-xs font-bold rounded-lg ${addMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-error-container text-on-error-container'}`}>
+                <div className={`mt-4 p-2 text-center text-xs font-bold rounded-lg ${
+                  addMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700' :
+                  addMessage.type === 'info' ? 'bg-blue-50 text-blue-700' :
+                  'bg-error-container text-on-error-container'
+                }`}>
                   {addMessage.text}
                 </div>
               )}

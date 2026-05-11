@@ -1,5 +1,5 @@
 import { getLibrary } from './library';
-import { getAllStoryAddedWords } from './storyAddedWords';
+import { getAllStoryAddedWords, removeWordFromStory } from './storyAddedWords';
 
 const FLASHCARDS_STATUS_KEY = 'linguStory_flashcards_status';
 
@@ -22,12 +22,17 @@ export const getGlobalFlashcards = () => {
         id: w.id,
         target: w.targetWord,
         native: w.nativeWord,
-        exampleSentenceTargetLanguage: null,
-        exampleSentenceNativeLanguage: null
+        exampleSentenceTargetLanguage: w.exampleSentenceTargetLanguage || null,
+        exampleSentenceNativeLanguage: w.exampleSentenceNativeLanguage || null,
+        storyId: w.storyId // Ensure storyId is preserved if needed, though filter already passed
       }))
     ];
 
     combinedVocab.forEach(item => {
+      // Filter out deleted cards
+      const status = statusMap[item.id] || statusMap[`${(item.termTargetLanguage || item.target || "").toLowerCase()}_${story.targetLanguage.toLowerCase()}_${story.baseLanguage.toLowerCase()}`];
+      if (status && status.reviewStatus === 'deleted') return;
+
       // Handle both old and new formats
       const termTarget = item.termTargetLanguage || item.target;
       const termNative = item.termNativeLanguage || item.native;
@@ -110,6 +115,45 @@ export const getFlashcardsStatus = () => {
     console.error('Failed to parse flashcards status', err);
     return {};
   }
+};
+
+/**
+ * Deletes a flashcard by marking its status as 'deleted'.
+ */
+export const deleteFlashcard = (cardId) => {
+  if (cardId.startsWith('added-')) {
+    removeWordFromStory(cardId);
+  } else {
+    updateFlashcardStatus(cardId, 'deleted');
+  }
+};
+
+/**
+ * Deletes multiple flashcards at once.
+ */
+export const deleteFlashcards = (cardIds) => {
+  const statusMap = getFlashcardsStatus();
+
+  cardIds.forEach(cardId => {
+    if (cardId.startsWith('added-')) {
+      removeWordFromStory(cardId);
+    } else {
+      const currentStatus = statusMap[cardId] || {
+        reviewStatus: 'new',
+        reviewCount: 0,
+        lastReviewedAt: null
+      };
+
+      statusMap[cardId] = {
+        ...currentStatus,
+        reviewStatus: 'deleted',
+        reviewCount: currentStatus.reviewCount + 1,
+        lastReviewedAt: new Date().toISOString()
+      };
+    }
+  });
+
+  localStorage.setItem(FLASHCARDS_STATUS_KEY, JSON.stringify(statusMap));
 };
 
 /**
