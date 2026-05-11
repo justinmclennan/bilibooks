@@ -7,6 +7,7 @@ const MyVocabulary = ({ onUseSelectedWords }) => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [displayMode, setDisplayMode] = useState('both'); // 'english', 'french', 'both'
   const [selectedWords, setSelectedWords] = useState(new Set());
+  const [visibleVocabIds, setVisibleVocabIds] = useState([]);
 
   // Parse CSV helper
   const parseCSV = (text) => {
@@ -62,6 +63,17 @@ const MyVocabulary = ({ onUseSelectedWords }) => {
     loadVocab();
   }, []);
 
+  // Initialize visible words when category changes
+  useEffect(() => {
+    if (selectedCategory) {
+      const categoryWords = vocabList.filter(item => item.category === selectedCategory && !item.isKnown);
+      // Take first 10 or all if less than 10
+      setVisibleVocabIds(categoryWords.slice(0, 10).map(w => w.id));
+    } else {
+      setVisibleVocabIds([]);
+    }
+  }, [selectedCategory, vocabList.length]); // vocabList.length to ensure it runs after initial load
+
   const saveProgress = (list) => {
     const progress = {};
     list.forEach(item => {
@@ -73,10 +85,39 @@ const MyVocabulary = ({ onUseSelectedWords }) => {
     localStorage.setItem('linguStory_vocab_progress', JSON.stringify(progress));
   };
 
-  const toggleKnown = (id) => {
-    const newList = vocabList.map(item =>
-      item.id === id ? { ...item, isKnown: !item.isKnown } : item
+  const getReplacementWord = (currentVisibleIds, category) => {
+    const availablePool = vocabList.filter(item =>
+      item.category === category &&
+      !item.isKnown &&
+      !currentVisibleIds.has(item.id) &&
+      !selectedWords.has(item.id)
     );
+
+    if (availablePool.length === 0) return null;
+    return availablePool[Math.floor(Math.random() * availablePool.length)];
+  };
+
+  const toggleKnown = (id) => {
+    const targetItem = vocabList.find(item => item.id === id);
+    if (!targetItem) return;
+
+    const isMarkingAsKnown = !targetItem.isKnown;
+
+    let newList = vocabList.map(item =>
+      item.id === id ? { ...item, isKnown: isMarkingAsKnown } : item
+    );
+
+    if (isMarkingAsKnown && selectedCategory) {
+      const replacement = getReplacementWord(new Set(visibleVocabIds), selectedCategory);
+      setVisibleVocabIds(prev => {
+        const next = prev.filter(vid => vid !== id);
+        if (replacement) {
+          next.push(replacement.id);
+        }
+        return next;
+      });
+    }
+
     setVocabList(newList);
     saveProgress(newList);
   };
@@ -130,7 +171,18 @@ const MyVocabulary = ({ onUseSelectedWords }) => {
     );
   }
 
-  const currentCategoryWords = vocabList.filter(item => item.category === selectedCategory);
+  const currentCategoryWords = useMemo(() => {
+    return visibleVocabIds.map(id => vocabList.find(w => w.id === id)).filter(Boolean);
+  }, [visibleVocabIds, vocabList]);
+
+  const handleRefresh = () => {
+    if (selectedCategory) {
+      const available = vocabList.filter(item => item.category === selectedCategory && !item.isKnown);
+      // Randomly shuffle and take 10
+      const shuffled = [...available].sort(() => 0.5 - Math.random());
+      setVisibleVocabIds(shuffled.slice(0, 10).map(w => w.id));
+    }
+  };
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500 pb-20">
@@ -193,7 +245,14 @@ const MyVocabulary = ({ onUseSelectedWords }) => {
               Back to Categories
             </button>
 
-            <div className="flex bg-surface-container-low rounded-lg p-1 border border-outline-variant">
+            <div className="flex bg-surface-container-low rounded-lg p-1 border border-outline-variant gap-2 items-center">
+              <button
+                onClick={handleRefresh}
+                className="p-2 text-primary hover:bg-primary/5 rounded-full transition-colors material-symbols-outlined text-sm"
+                title="Refresh Words"
+              >
+                refresh
+              </button>
               <button
                 onClick={() => setDisplayMode('english')}
                 className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${displayMode === 'english' ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-highest'}`}
@@ -223,11 +282,11 @@ const MyVocabulary = ({ onUseSelectedWords }) => {
                </span>
             </div>
 
-            <div className="divide-y divide-outline-variant">
-              {currentCategoryWords.map(word => (
+            <div className="divide-y divide-outline-variant min-h-[400px]">
+              {currentCategoryWords.length > 0 ? currentCategoryWords.map(word => (
                 <div
                   key={word.id}
-                  className={`flex items-center gap-4 px-6 py-4 transition-colors ${word.isKnown ? 'bg-emerald-50/30' : 'hover:bg-surface-container-low/50'}`}
+                  className={`flex items-center gap-4 px-6 py-4 transition-colors animate-in fade-in duration-300 ${word.isKnown ? 'bg-emerald-50/30' : 'hover:bg-surface-container-low/50'}`}
                 >
                   <div className="flex items-center">
                     <input
@@ -271,7 +330,13 @@ const MyVocabulary = ({ onUseSelectedWords }) => {
                     )}
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="flex flex-col items-center justify-center py-20 text-on-surface-variant gap-4">
+                  <span className="material-symbols-outlined text-4xl opacity-20">done_all</span>
+                  <p className="font-medium">No more new words available in this category!</p>
+                  <button onClick={handleRefresh} className="text-primary font-bold hover:underline">Try Refreshing</button>
+                </div>
+              )}
             </div>
           </div>
 

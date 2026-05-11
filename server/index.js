@@ -493,6 +493,12 @@ app.get('/api/library/:id/file/:filename', async (req, res) => {
 
 app.delete('/api/library/:id', async (req, res) => {
   const { id } = req.params;
+
+  // Basic path traversal prevention
+  if (id.includes('..') || id.includes('/') || id.includes('\\')) {
+    return res.status(400).json({ error: 'Invalid story ID' });
+  }
+
   const folderPath = path.join(LIBRARY_DIR, id);
 
   if (!fs.existsSync(folderPath)) {

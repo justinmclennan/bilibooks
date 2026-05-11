@@ -129,6 +129,34 @@ export const deleteFlashcard = (cardId) => {
 };
 
 /**
+ * Deletes multiple flashcards at once.
+ */
+export const deleteFlashcards = (cardIds) => {
+  const statusMap = getFlashcardsStatus();
+
+  cardIds.forEach(cardId => {
+    if (cardId.startsWith('added-')) {
+      removeWordFromStory(cardId);
+    } else {
+      const currentStatus = statusMap[cardId] || {
+        reviewStatus: 'new',
+        reviewCount: 0,
+        lastReviewedAt: null
+      };
+
+      statusMap[cardId] = {
+        ...currentStatus,
+        reviewStatus: 'deleted',
+        reviewCount: currentStatus.reviewCount + 1,
+        lastReviewedAt: new Date().toISOString()
+      };
+    }
+  });
+
+  localStorage.setItem(FLASHCARDS_STATUS_KEY, JSON.stringify(statusMap));
+};
+
+/**
  * Updates the review status of a flashcard.
  */
 export const updateFlashcardStatus = (cardId, newStatus) => {

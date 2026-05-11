@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
-import { getGlobalFlashcards, updateFlashcardStatus, deleteFlashcard } from '../utils/flashcards';
+import { getGlobalFlashcards, updateFlashcardStatus, deleteFlashcard, deleteFlashcards } from '../utils/flashcards';
 import Flashcard from './Flashcard';
 
 const GlobalFlashcardLibrary = () => {
   const [flashcards, setFlashcards] = useState([]);
+  const [selectedIds, setSelectedIds] = useState(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLanguage, setFilterLanguage] = useState('all');
   const [filterStory, setFilterStory] = useState('all');
@@ -75,6 +76,33 @@ const GlobalFlashcardLibrary = () => {
     e.stopPropagation();
     if (window.confirm('Delete this flashcard? This cannot be undone.')) {
       deleteFlashcard(cardId);
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        next.delete(cardId);
+        return next;
+      });
+      loadFlashcards();
+    }
+  };
+
+  const handleToggleSelect = (cardId, e) => {
+    e.stopPropagation();
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(cardId)) {
+        next.delete(cardId);
+      } else {
+        next.add(cardId);
+      }
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedIds.size === 0) return;
+    if (window.confirm(`Delete ${selectedIds.size} selected flashcards? This cannot be undone.`)) {
+      deleteFlashcards(Array.from(selectedIds));
+      setSelectedIds(new Set());
       loadFlashcards();
     }
   };
@@ -128,6 +156,15 @@ const GlobalFlashcardLibrary = () => {
           <p className="text-on-surface-variant">Review vocabulary from all your stories in one place.</p>
         </div>
         <div className="flex gap-3">
+          {selectedIds.size > 0 && (
+            <button
+              onClick={handleDeleteSelected}
+              className="bg-error text-on-error px-6 py-3 rounded-xl font-bold shadow-lg shadow-error/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined">delete_sweep</span>
+              Delete Selected ({selectedIds.size})
+            </button>
+          )}
           <button
             onClick={() => { setStartIndex(0); setReviewFilter('all'); setReviewMode(true); }}
             disabled={filteredCards.length === 0}
@@ -210,18 +247,26 @@ const GlobalFlashcardLibrary = () => {
             <div
               key={card.id}
               onClick={() => handleCardClick(card.id)}
-              className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-5 shadow-sm hover:shadow-md transition-all group cursor-pointer active:scale-[0.98]"
+              className={`bg-surface-container-lowest border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all group cursor-pointer active:scale-[0.98] relative ${selectedIds.has(card.id) ? 'border-primary ring-2 ring-primary/20' : 'border-outline-variant'}`}
             >
               <div className="flex justify-between items-start mb-4">
-                <div className="flex flex-col gap-1">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-tighter w-fit ${
-                    card.reviewStatus === 'known' ? 'bg-emerald-100 text-emerald-700' :
-                    card.reviewStatus === 'stillLearning' ? 'bg-amber-100 text-amber-700' :
-                    'bg-blue-100 text-blue-700'
-                  }`}>
-                    {card.reviewStatus.replace(/([A-Z])/g, ' $1')}
-                  </span>
-                  <span className="text-[10px] font-bold text-on-surface-variant/60 uppercase">{card.targetLanguage}</span>
+                <div className="flex items-center gap-3">
+                  <div
+                    onClick={(e) => handleToggleSelect(card.id, e)}
+                    className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${selectedIds.has(card.id) ? 'bg-primary border-primary text-on-primary' : 'border-outline-variant bg-surface-container-low group-hover:border-primary/50'}`}
+                  >
+                    {selectedIds.has(card.id) && <span className="material-symbols-outlined text-xs font-bold">check</span>}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-tighter w-fit ${
+                      card.reviewStatus === 'known' ? 'bg-emerald-100 text-emerald-700' :
+                      card.reviewStatus === 'stillLearning' ? 'bg-amber-100 text-amber-700' :
+                      'bg-blue-100 text-blue-700'
+                    }`}>
+                      {card.reviewStatus.replace(/([A-Z])/g, ' $1')}
+                    </span>
+                    <span className="text-[10px] font-bold text-on-surface-variant/60 uppercase">{card.targetLanguage}</span>
+                  </div>
                 </div>
                 <button
                   onClick={(e) => handleDeleteCard(card.id, e)}
