@@ -23,7 +23,8 @@ export const getGlobalFlashcards = () => {
         target: w.targetWord,
         native: w.nativeWord,
         exampleSentenceTargetLanguage: w.exampleSentenceTargetLanguage || null,
-        exampleSentenceNativeLanguage: w.exampleSentenceNativeLanguage || null
+        exampleSentenceNativeLanguage: w.exampleSentenceNativeLanguage || null,
+        storyId: w.storyId // Ensure storyId is preserved if needed, though filter already passed
       }))
     ];
 

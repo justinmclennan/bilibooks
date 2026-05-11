@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
-const Flashcard = ({ vocabulary, onUpdateStatus }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
+const Flashcard = ({ vocabulary, onUpdateStatus, initialIndex = 0 }) => {
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isFlipped, setIsFlipped] = useState(false);
 
   if (!vocabulary || vocabulary.length === 0) {
@@ -18,12 +18,16 @@ const Flashcard = ({ vocabulary, onUpdateStatus }) => {
 
   const handleNext = () => {
     setIsFlipped(false);
-    setCurrentIndex((prev) => (prev + 1) % vocabulary.length);
+    setTimeout(() => {
+      setCurrentIndex((prev) => (prev + 1) % vocabulary.length);
+    }, 150);
   };
 
   const handlePrev = () => {
     setIsFlipped(false);
-    setCurrentIndex((prev) => (prev - 1 + vocabulary.length) % vocabulary.length);
+    setTimeout(() => {
+      setCurrentIndex((prev) => (prev - 1 + vocabulary.length) % vocabulary.length);
+    }, 150);
   };
 
   const handleFlip = () => {
@@ -43,8 +47,23 @@ const Flashcard = ({ vocabulary, onUpdateStatus }) => {
         <div className={`relative w-full h-full transition-transform duration-500 transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
           {/* Front */}
           <div className="absolute inset-0 backface-hidden bg-surface-container-lowest border-2 border-primary/20 rounded-2xl shadow-lg flex flex-col items-center justify-center p-xl text-center">
+            <div className="absolute top-4 left-4 right-4 flex justify-between items-center opacity-60">
+               <span className="text-[10px] font-bold uppercase tracking-tighter bg-surface-container px-2 py-0.5 rounded text-on-surface-variant">
+                 {currentItem.targetLanguage}
+               </span>
+               <span className="text-[10px] font-bold uppercase tracking-tighter text-on-surface-variant">
+                 {currentItem.level}
+               </span>
+            </div>
+
             <h2 className="text-headline-md font-bold text-primary">{targetTerm}</h2>
-            <p className="mt-4 text-sm text-on-surface-variant font-bold uppercase tracking-widest">Tap to flip</p>
+
+            <div className="absolute bottom-12 w-full text-center">
+               <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest truncate px-8">
+                 {currentItem.sourceStoryTitle}
+               </p>
+            </div>
+            <p className="absolute bottom-4 w-full text-center text-xs text-on-surface-variant font-bold uppercase tracking-widest">Tap to flip</p>
           </div>
 
           {/* Back */}
@@ -67,7 +86,7 @@ const Flashcard = ({ vocabulary, onUpdateStatus }) => {
 
               {!exampleTarget && (
                 <div className="border-t border-outline-variant pt-4">
-                   <p className="text-xs font-bold text-on-surface-variant italic">No story example found.</p>
+                   <p className="text-xs font-bold text-on-surface-variant italic">No example sentence yet.</p>
                 </div>
               )}
             </div>

@@ -10,6 +10,7 @@ const GlobalFlashcardLibrary = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [reviewMode, setReviewMode] = useState(false);
   const [reviewFilter, setReviewFilter] = useState('all'); // 'all' or 'stillLearning'
+  const [startIndex, setStartIndex] = useState(0);
 
   useEffect(() => {
     loadFlashcards();
@@ -61,6 +62,15 @@ const GlobalFlashcardLibrary = () => {
     loadFlashcards(); // Reload to update UI
   };
 
+  const handleCardClick = (cardId) => {
+    const idx = filteredCards.findIndex(c => c.id === cardId);
+    if (idx !== -1) {
+      setStartIndex(idx);
+      setReviewFilter('filtered');
+      setReviewMode(true);
+    }
+  };
+
   const handleDeleteCard = (cardId, e) => {
     e.stopPropagation();
     if (window.confirm('Delete this flashcard? This cannot be undone.')) {
@@ -88,8 +98,10 @@ const GlobalFlashcardLibrary = () => {
         <div className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm min-h-[500px] flex flex-col justify-center">
           {cardsToReview.length > 0 ? (
             <Flashcard
+              key={`review-${startIndex}-${cardsToReview.length}`}
               vocabulary={cardsToReview}
               onUpdateStatus={handleUpdateStatus}
+              initialIndex={startIndex}
             />
           ) : (
             <div className="text-center space-y-4">
@@ -117,14 +129,14 @@ const GlobalFlashcardLibrary = () => {
         </div>
         <div className="flex gap-3">
           <button
-            onClick={() => { setReviewFilter('all'); setReviewMode(true); }}
+            onClick={() => { setStartIndex(0); setReviewFilter('all'); setReviewMode(true); }}
             disabled={filteredCards.length === 0}
             className="bg-primary text-on-primary px-6 py-3 rounded-xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100"
           >
             Review All ({filteredCards.length})
           </button>
           <button
-            onClick={() => { setReviewFilter('stillLearning'); setReviewMode(true); }}
+            onClick={() => { setStartIndex(0); setReviewFilter('stillLearning'); setReviewMode(true); }}
             disabled={filteredCards.filter(c => c.reviewStatus === 'stillLearning').length === 0}
             className="bg-secondary text-on-secondary px-6 py-3 rounded-xl font-bold shadow-lg shadow-secondary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100"
           >
@@ -197,7 +209,8 @@ const GlobalFlashcardLibrary = () => {
           {filteredCards.map(card => (
             <div
               key={card.id}
-              className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-5 shadow-sm hover:shadow-md transition-all group"
+              onClick={() => handleCardClick(card.id)}
+              className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-5 shadow-sm hover:shadow-md transition-all group cursor-pointer active:scale-[0.98]"
             >
               <div className="flex justify-between items-start mb-4">
                 <div className="flex flex-col gap-1">
