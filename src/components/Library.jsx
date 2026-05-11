@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getLibrary } from '../utils/library';
+import { getLibrary, deleteStory } from '../utils/library';
 
 const Library = ({ onViewDetails }) => {
   const [stories, setStories] = useState([]);
@@ -20,6 +20,14 @@ const Library = ({ onViewDetails }) => {
       setError('Could not load your library.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async (id, e) => {
+    e.stopPropagation();
+    if (window.confirm('Delete this story? This cannot be undone.')) {
+      await deleteStory(id);
+      fetchLibrary();
     }
   };
 
@@ -79,7 +87,16 @@ const Library = ({ onViewDetails }) => {
                   <div className="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-[10px] font-bold uppercase tracking-wider">
                     {story.targetLanguage}
                   </div>
-                  <span className="text-[10px] text-on-surface-variant font-mono">{story.level}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-on-surface-variant font-mono">{story.level}</span>
+                    <button
+                      onClick={(e) => handleDelete(story.id, e)}
+                      className="p-1 text-on-surface-variant hover:text-error transition-colors material-symbols-outlined text-sm"
+                      title="Delete Story"
+                    >
+                      delete
+                    </button>
+                  </div>
                 </div>
                 <h3 className="font-headline-sm text-on-surface mb-2 group-hover:text-primary transition-colors line-clamp-2">{story.title}</h3>
                 <div className="space-y-2 mt-4">

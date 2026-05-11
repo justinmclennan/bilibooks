@@ -56,7 +56,17 @@ export const getStoryById = (id) => {
 /**
  * Deletes a story by ID.
  */
-export const deleteStory = (id) => {
+export const deleteStory = async (id) => {
+  // 1. Delete from backend if applicable
+  if (id && !id.startsWith('local-')) {
+    try {
+      await fetch(`/api/library/${id}`, { method: 'DELETE' });
+    } catch (err) {
+      console.warn('Failed to delete story from backend', err);
+    }
+  }
+
+  // 2. Delete from localStorage
   const library = getLibrary();
   const updatedLibrary = library.filter(story => story.id !== id);
   localStorage.setItem(LIBRARY_KEY, JSON.stringify(updatedLibrary));

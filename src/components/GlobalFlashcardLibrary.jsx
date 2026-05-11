@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { getGlobalFlashcards, updateFlashcardStatus } from '../utils/flashcards';
+import { getGlobalFlashcards, updateFlashcardStatus, deleteFlashcard } from '../utils/flashcards';
 import Flashcard from './Flashcard';
 
 const GlobalFlashcardLibrary = () => {
@@ -59,6 +59,14 @@ const GlobalFlashcardLibrary = () => {
   const handleUpdateStatus = (cardId, newStatus) => {
     updateFlashcardStatus(cardId, newStatus);
     loadFlashcards(); // Reload to update UI
+  };
+
+  const handleDeleteCard = (cardId, e) => {
+    e.stopPropagation();
+    if (window.confirm('Delete this flashcard? This cannot be undone.')) {
+      deleteFlashcard(cardId);
+      loadFlashcards();
+    }
   };
 
   if (reviewMode) {
@@ -192,14 +200,23 @@ const GlobalFlashcardLibrary = () => {
               className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-5 shadow-sm hover:shadow-md transition-all group"
             >
               <div className="flex justify-between items-start mb-4">
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-tighter ${
-                  card.reviewStatus === 'known' ? 'bg-emerald-100 text-emerald-700' :
-                  card.reviewStatus === 'stillLearning' ? 'bg-amber-100 text-amber-700' :
-                  'bg-blue-100 text-blue-700'
-                }`}>
-                  {card.reviewStatus.replace(/([A-Z])/g, ' $1')}
-                </span>
-                <span className="text-[10px] font-bold text-on-surface-variant/60 uppercase">{card.targetLanguage}</span>
+                <div className="flex flex-col gap-1">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-tighter w-fit ${
+                    card.reviewStatus === 'known' ? 'bg-emerald-100 text-emerald-700' :
+                    card.reviewStatus === 'stillLearning' ? 'bg-amber-100 text-amber-700' :
+                    'bg-blue-100 text-blue-700'
+                  }`}>
+                    {card.reviewStatus.replace(/([A-Z])/g, ' $1')}
+                  </span>
+                  <span className="text-[10px] font-bold text-on-surface-variant/60 uppercase">{card.targetLanguage}</span>
+                </div>
+                <button
+                  onClick={(e) => handleDeleteCard(card.id, e)}
+                  className="p-1 text-on-surface-variant hover:text-error transition-colors material-symbols-outlined text-sm"
+                  title="Delete Flashcard"
+                >
+                  delete
+                </button>
               </div>
               <h3 className="text-xl font-bold text-primary mb-1">{card.termTargetLanguage}</h3>
               <p className="text-on-surface font-semibold mb-4">{card.termNativeLanguage}</p>

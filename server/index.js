@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import textToSpeech from '@google-cloud/text-to-speech';
-import { STORY_SYSTEM_PROMPT, PLANNING_SYSTEM_PROMPT } from '../src/prompts/storySpec.js';
+import { STORY_SYSTEM_PROMPT, PLANNING_SYSTEM_PROMPT, FLASHCARD_GENERATION_PROMPT } from '../src/prompts/storySpec.js';
 import { concatenateWavs, createSilenceBuffer } from './audioUtils.js';
 
 dotenv.config();
@@ -139,6 +139,39 @@ function validateChapter(chapterData, targets, sentenceLevelStyle) {
     targets
   };
 }
+
+app.post('/api/generate-flashcard-context', async (req, res) => {
+  const { targetWord, nativeTranslation, targetLanguage, baseLanguage, level, sourceSentence } = req.body;
+
+  if (!targetWord || !targetLanguage || !baseLanguage) {
+    return res.status(400).json({ error: 'Missing required fields for flashcard context generation' });
+  }
+
+  try {
+    const prompt = FLASHCARD_GENERATION_PROMPT
+      .replace(/{targetLanguage}/g, targetLanguage)
+      .replace(/{baseLanguage}/g, baseLanguage)
+      .replace(/{level}/g, level || 'A1')
+      .replace(/{targetWord}/g, targetWord)
+      .replace(/{nativeTranslation}/g, nativeTranslation || '')
+      .replace(/{sourceSentence}/g, sourceSentence || 'None provided');
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "You are a language learning assistant." },
+        { role: "user", content: prompt }
+      ],
+      response_format: { type: "json_object" },
+    });
+
+    const result = JSON.parse(response.choices[0].message.content);
+    res.json(result);
+  } catch (error) {
+    console.error('Error generating flashcard context:', error);
+    res.status(500).json({ error: 'Failed to generate flashcard context' });
+  }
+});
 
 app.post('/api/generate-story', async (req, res) => {
   const {
@@ -456,6 +489,23 @@ app.get('/api/library/:id/file/:filename', async (req, res) => {
   }
 
   res.sendFile(filePath);
+});
+
+app.delete('/api/library/:id', async (req, res) => {
+  const { id } = req.params;
+  const folderPath = path.join(LIBRARY_DIR, id);
+
+  if (!fs.existsSync(folderPath)) {
+    return res.status(404).json({ error: 'Story not found' });
+  }
+
+  try {
+    fs.rmSync(folderPath, { recursive: true, force: true });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting story folder:', error);
+    res.status(500).json({ error: 'Failed to delete story folder' });
+  }
 });
 
 app.post('/api/library/save', async (req, res) => {
