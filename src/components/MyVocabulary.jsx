@@ -1,15 +1,35 @@
 import { useState, useEffect, useMemo } from 'react';
 
 const CEFR_LEVELS = ['Pre-A1', 'A1', 'A2', 'B1', 'B2'];
-const BATCH_SIZE = 20;
+const CATEGORIES = [
+  'General',
+  'High-frequency words',
+  'Verbs',
+  'Nouns',
+  'Adjectives',
+  'Adverbs',
+  'Connectors',
+  'Expressions',
+  'Questions',
+  'People & family',
+  'Places & travel',
+  'Food & restaurants',
+  'Home & daily life',
+  'School & work',
+  'Emotions & opinions',
+  'Time & routines'
+];
+const BATCH_SIZE = 12;
 
-const MyVocabulary = ({ onUseSelectedWords }) => {
+const MyVocabulary = ({ onUseSelectedWords, targetLanguage, nativeLanguage, currentLevel }) => {
   const [allVocab, setAllVocab] = useState([]);
   const [candidateVocab, setCandidateVocab] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedLevel, setSelectedLevel] = useState('B1');
-  const [displayMode, setDisplayMode] = useState('both'); // 'english', 'french', 'both'
+  const [selectedLevel, setSelectedLevel] = useState(currentLevel || 'B1');
+  const [selectedCategory, setSelectedCategory] = useState('General');
+  const [displayMode, setDisplayMode] = useState('both'); // 'native', 'target', 'both'
   const [selectedWords, setSelectedWords] = useState(() => {
     const saved = localStorage.getItem('linguStory_vocab_selection');
     return saved ? JSON.parse(saved) : [];
@@ -34,63 +54,127 @@ const MyVocabulary = ({ onUseSelectedWords }) => {
 
   useEffect(() => {
     const loadVocab = async () => {
+      setIsLoading(true);
       try {
-        const response = await fetch('/vocabulary_all_levels.csv');
-        if (!response.ok) throw new Error('Failed to fetch vocabulary file');
-        const text = await response.text();
-        const rawData = parseCSV(text);
-
         // Load progress from localStorage
         const storedProgress = JSON.parse(localStorage.getItem('linguStory_vocab_progress') || '{}');
         const known = new Set();
         const used = new Set();
 
-        const structuredData = rawData.map(item => {
-          const id = `${item.level}-${item.category}-${item.nativeWord}-${item.targetWord}`.replace(/\s+/g, '-').toLowerCase();
-          if (storedProgress[id]?.isKnown) known.add(id);
-          if (storedProgress[id]?.hasBeenUsedInStory) used.add(id);
+        // Only load static CSV if it matches French-English for now (seeds)
+        // In a real app, we'd have multiple CSVs or a database.
+        let structuredData = [];
+        if (targetLanguage === 'French' && nativeLanguage === 'English') {
+          const response = await fetch('/vocabulary_all_levels.csv');
+          if (response.ok) {
+            const text = await response.text();
+            const rawData = parseCSV(text);
+            structuredData = rawData.map(item => {
+              const id = `${item.level}-${item.category}-${item.nativeWord}-${item.targetWord}`.replace(/\s+/g, '-').toLowerCase();
+              return {
+                id,
+                level: item.level,
+                category: item.category,
+                nativeWord: item.nativeWord,
+                targetWord: item.targetWord,
+                partOfSpeech: item.partOfSpeech || '',
+                targetLanguage: 'French',
+                nativeLanguage: 'English',
+                source: 'static'
+              };
+            });
+          }
+        }
 
-          return {
-            id,
-            level: item.level,
-            category: item.category,
-            nativeWord: item.nativeWord,
-            targetWord: item.targetWord,
-            partOfSpeech: item.partOfSpeech || '',
-          };
+        // Merge progress for static words
+        structuredData.forEach(item => {
+          if (storedProgress[item.id]?.isKnown) known.add(item.id);
+          if (storedProgress[item.id]?.hasBeenUsedInStory) used.add(item.id);
         });
 
         setAllVocab(structuredData);
         setKnownWordIds(known);
         setUsedWordIds(used);
 
-        // Initial batch for default level
-        generateBatch(structuredData, 'B1');
+        // Initial batch
+        fetchBatch(structuredData, selectedLevel, selectedCategory);
       } catch (err) {
         console.error('Error loading vocabulary:', err);
-        setError('Failed to load vocabulary. Please try again later.');
+        setError('Failed to load vocabulary workspace.');
       } finally {
         setIsLoading(false);
       }
     };
 
     loadVocab();
-  }, []);
+  }, [targetLanguage, nativeLanguage]);
 
-  const generateBatch = (vocab, level) => {
-    const levelWords = vocab.filter(item => item.level === level);
-    // Shuffle and pick BATCH_SIZE
-    const shuffled = [...levelWords].sort(() => 0.5 - Math.random());
-    setCandidateVocab(shuffled.slice(0, BATCH_SIZE));
+  const fetchBatch = async (vocab, level, category) => {
+    setIsRefreshing(true);
+    try {
+      // 1. Try to find matching words in our local seed list
+      const matchingLocal = vocab.filter(item =>
+        item.level === level &&
+        (category === 'General' || item.category.toLowerCase() === category.toLowerCase())
+      );
+
+      // 2. If we have enough local words, use them (shuffled)
+      if (matchingLocal.length >= BATCH_SIZE) {
+        const shuffled = [...matchingLocal].sort(() => 0.5 - Math.random());
+        setCandidateVocab(shuffled.slice(0, BATCH_SIZE));
+      } else {
+        // 3. Otherwise, fetch from AI
+        const excluded = selectedWords.map(w => w.targetWord).join(', ');
+        const response = await fetch('/api/generate-vocabulary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            targetLanguage,
+            nativeLanguage,
+            level,
+            category,
+            excludedWords: excluded,
+            count: BATCH_SIZE
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const aiWords = data.words.map(w => ({
+            ...w,
+            id: `ai-${level}-${category}-${w.targetWord}`.replace(/\s+/g, '-').toLowerCase(),
+            nativeWord: w.nativeTranslation,
+            source: 'ai'
+          }));
+
+          // Merge local if any
+          const merged = [...matchingLocal, ...aiWords];
+          const shuffled = merged.sort(() => 0.5 - Math.random());
+          setCandidateVocab(shuffled.slice(0, BATCH_SIZE));
+        } else {
+          // Fallback to whatever local we have if AI fails
+          setCandidateVocab(matchingLocal);
+        }
+      }
+    } catch (err) {
+      console.error('Error refreshing batch:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const handleRefresh = () => {
-    generateBatch(allVocab, selectedLevel);
+    fetchBatch(allVocab, selectedLevel, selectedCategory);
   };
 
   const handleLevelChange = (level) => {
     setSelectedLevel(level);
-    generateBatch(allVocab, level);
+    fetchBatch(allVocab, level, selectedCategory);
+  };
+
+  const handleCategoryChange = (category) => {
+    setSelectedCategory(category);
+    fetchBatch(allVocab, selectedLevel, category);
   };
 
   const toggleKnown = (id) => {
@@ -106,15 +190,18 @@ const MyVocabulary = ({ onUseSelectedWords }) => {
 
   const saveProgress = (known, used) => {
     const progress = {};
-    // This is a bit inefficient but matches the existing pattern
-    allVocab.forEach(item => {
-      if (known.has(item.id) || used.has(item.id)) {
-        progress[item.id] = {
-          isKnown: known.has(item.id),
-          hasBeenUsedInStory: used.has(item.id)
-        };
-      }
+    // Load existing to not lose data for words not currently in 'allVocab'
+    const storedProgress = JSON.parse(localStorage.getItem('linguStory_vocab_progress') || '{}');
+    Object.assign(progress, storedProgress);
+
+    // Update with current sets
+    known.forEach(id => {
+      progress[id] = { ...progress[id], isKnown: true };
     });
+    used.forEach(id => {
+      progress[id] = { ...progress[id], hasBeenUsedInStory: true };
+    });
+
     localStorage.setItem('linguStory_vocab_progress', JSON.stringify(progress));
   };
 
@@ -130,26 +217,18 @@ const MyVocabulary = ({ onUseSelectedWords }) => {
   };
 
   const stats = useMemo(() => {
-    const total = allVocab.length;
-    const known = knownWordIds.size;
+    const totalKnown = knownWordIds.size;
+    const levelTotal = allVocab.filter(i => i.level === selectedLevel).length;
+    const levelKnown = allVocab.filter(i => i.level === selectedLevel && knownWordIds.has(i.id)).length;
 
-    const levelStats = CEFR_LEVELS.reduce((acc, lvl) => {
-      const items = allVocab.filter(i => i.level === lvl);
-      acc[lvl] = {
-        total: items.length,
-        known: items.filter(i => knownWordIds.has(i.id)).length
-      };
-      return acc;
-    }, {});
-
-    return { total, known, levelStats };
-  }, [allVocab, knownWordIds]);
+    return { totalKnown, levelTotal, levelKnown };
+  }, [allVocab, knownWordIds, selectedLevel]);
 
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <span className="animate-spin material-symbols-outlined text-4xl text-primary">progress_activity</span>
-        <p className="mt-4 text-on-surface-variant font-body-md">Loading vocabulary...</p>
+        <p className="mt-4 text-on-surface-variant font-body-md">Initializing vocabulary workspace...</p>
       </div>
     );
   }
@@ -168,19 +247,23 @@ const MyVocabulary = ({ onUseSelectedWords }) => {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h1 className="text-headline-lg font-bold text-on-surface">Vocabulary Workspace</h1>
-          <p className="text-on-surface-variant">Select words for your next story and track your progress.</p>
+          <p className="text-on-surface-variant">
+            Explore {targetLanguage} vocabulary at {selectedLevel} level.
+          </p>
         </div>
         <div className="bg-primary-fixed/30 px-6 py-4 rounded-2xl border border-primary/20">
-          <div className="text-label-caps font-bold text-primary mb-1">{selectedLevel} PROGRESS</div>
+          <div className="text-label-caps font-bold text-primary mb-1">
+            {selectedLevel} {targetLanguage.toUpperCase()} PROGRESS
+          </div>
           <div className="flex items-center gap-4">
-            <div className="flex-grow h-2 bg-surface-container-highest rounded-full min-w-[120px] overflow-hidden">
+            <div className="flex-grow h-2 bg-surface-container-highest rounded-full min-w-[150px] overflow-hidden">
               <div
                 className="h-full bg-primary transition-all duration-500"
-                style={{ width: `${(stats.levelStats[selectedLevel].known / stats.levelStats[selectedLevel].total) * 100}%` }}
+                style={{ width: stats.levelTotal > 0 ? `${(stats.levelKnown / stats.levelTotal) * 100}%` : '0%' }}
               ></div>
             </div>
             <span className="font-headline-sm text-on-surface">
-              {stats.levelStats[selectedLevel].known} / {stats.levelStats[selectedLevel].total}
+              {stats.levelKnown} {stats.levelTotal > 0 ? `/ ${stats.levelTotal}` : 'known'}
             </span>
           </div>
         </div>
@@ -190,44 +273,59 @@ const MyVocabulary = ({ onUseSelectedWords }) => {
         {/* Left Column: Selection Area */}
         <div className="lg:col-span-8 space-y-6">
           <div className="bg-surface-container-low p-6 rounded-3xl border border-outline-variant space-y-6 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="flex flex-col">
-                  <label className="text-[10px] font-bold text-on-surface-variant uppercase mb-1 ml-1">Target Level</label>
-                  <select
-                    value={selectedLevel}
-                    onChange={(e) => handleLevelChange(e.target.value)}
-                    className="bg-surface-container-lowest border-outline-variant rounded-xl px-4 py-2 font-bold text-primary focus:ring-2 focus:ring-primary outline-none"
-                  >
-                    {CEFR_LEVELS.map(lvl => <option key={lvl} value={lvl}>{lvl}</option>)}
-                  </select>
-                </div>
-                <div className="flex flex-col">
-                   <label className="text-[10px] font-bold text-on-surface-variant uppercase mb-1 ml-1">&nbsp;</label>
-                   <button
-                     onClick={handleRefresh}
-                     className="flex items-center gap-2 px-4 py-2 bg-secondary text-on-secondary rounded-xl font-bold hover:scale-105 active:scale-95 transition-all shadow-md"
-                   >
-                     <span className="material-symbols-outlined text-sm">refresh</span>
-                     Refresh Batch
-                   </button>
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 items-end">
+              <div className="flex flex-col">
+                <label className="text-[10px] font-bold text-on-surface-variant uppercase mb-1 ml-1">Level</label>
+                <select
+                  value={selectedLevel}
+                  onChange={(e) => handleLevelChange(e.target.value)}
+                  className="bg-surface-container-lowest border-outline-variant rounded-xl px-4 py-2 font-bold text-primary focus:ring-2 focus:ring-primary outline-none"
+                >
+                  {CEFR_LEVELS.map(lvl => <option key={lvl} value={lvl}>{lvl}</option>)}
+                </select>
               </div>
-
-              <div className="flex bg-surface-container-lowest rounded-lg p-1 border border-outline-variant self-end">
-                {['english', 'french', 'both'].map(mode => (
-                  <button
-                    key={mode}
-                    onClick={() => setDisplayMode(mode)}
-                    className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all uppercase ${displayMode === mode ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-highest'}`}
-                  >
-                    {mode}
-                  </button>
-                ))}
+              <div className="flex flex-col">
+                <label className="text-[10px] font-bold text-on-surface-variant uppercase mb-1 ml-1">Category</label>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => handleCategoryChange(e.target.value)}
+                  className="bg-surface-container-lowest border-outline-variant rounded-xl px-4 py-2 font-bold text-primary focus:ring-2 focus:ring-primary outline-none"
+                >
+                  {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+              </div>
+              <div>
+                <button
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-secondary text-on-secondary rounded-xl font-bold hover:scale-105 active:scale-95 transition-all shadow-md disabled:opacity-50"
+                >
+                  <span className={`material-symbols-outlined text-sm ${isRefreshing ? 'animate-spin' : ''}`}>
+                    {isRefreshing ? 'progress_activity' : 'refresh'}
+                  </span>
+                  Refresh Candidates
+                </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="flex bg-surface-container-lowest rounded-lg p-1 border border-outline-variant w-fit ml-auto">
+              {['native', 'target', 'both'].map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => setDisplayMode(mode)}
+                  className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all uppercase ${displayMode === mode ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-highest'}`}
+                >
+                  {mode === 'native' ? nativeLanguage : mode === 'target' ? targetLanguage : 'Both'}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 min-h-[400px] content-start">
+              {candidateVocab.length === 0 && !isRefreshing && (
+                <div className="col-span-full py-20 text-center text-on-surface-variant">
+                   <p>No candidates found. Try refreshing or changing settings.</p>
+                </div>
+              )}
               {candidateVocab.map(word => {
                 const isSelected = selectedWords.some(w => w.id === word.id);
                 const isKnown = knownWordIds.has(word.id);
@@ -254,12 +352,12 @@ const MyVocabulary = ({ onUseSelectedWords }) => {
 
                     <div className="flex-grow min-w-0">
                       <div className="flex items-baseline gap-2">
-                        <span className={`font-bold truncate transition-all ${displayMode === 'english' ? 'blur-[3px] select-none opacity-20' : 'text-on-surface'}`}>
+                        <span className={`font-bold truncate transition-all ${displayMode === 'native' ? 'blur-[3px] select-none opacity-20' : 'text-on-surface'}`}>
                           {word.targetWord}
                         </span>
                         <span className="text-[9px] text-on-surface-variant font-bold uppercase opacity-60">{word.partOfSpeech}</span>
                       </div>
-                      <div className={`text-sm truncate transition-all ${displayMode === 'french' ? 'blur-[3px] select-none opacity-20' : 'text-on-surface-variant'}`}>
+                      <div className={`text-sm truncate transition-all ${displayMode === 'target' ? 'blur-[3px] select-none opacity-20' : 'text-on-surface-variant'}`}>
                         {word.nativeWord}
                       </div>
                     </div>

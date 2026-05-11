@@ -10,6 +10,7 @@ const FLASHCARDS_STATUS_KEY = 'linguStory_flashcards_status';
 export const getGlobalFlashcards = () => {
   const library = getLibrary();
   const statusMap = getFlashcardsStatus();
+  const blacklist = getFlashcardsBlacklist();
   const flashcardsMap = {};
 
   library.forEach(story => {
@@ -35,6 +36,7 @@ export const getGlobalFlashcards = () => {
       if (!termTarget) return;
 
       const key = `${termTarget.toLowerCase()}_${story.targetLanguage.toLowerCase()}_${story.baseLanguage.toLowerCase()}`;
+      if (blacklist.includes(key)) return;
 
       if (!flashcardsMap[key]) {
         // Find example sentence in story if missing (fallback for older stories)
@@ -132,4 +134,22 @@ export const updateFlashcardStatus = (cardId, newStatus) => {
   };
 
   localStorage.setItem(FLASHCARDS_STATUS_KEY, JSON.stringify(statusMap));
+};
+
+/**
+ * Deletes a flashcard status/history.
+ * Note: Flashcards are derived from stories, so to truly delete a flashcard,
+ * you would need to delete it from the story vocabulary or the added words list.
+ * For now, this just hides it from global views by blacklisting the ID.
+ */
+export const deleteFlashcard = (cardId) => {
+  const blacklisted = JSON.parse(localStorage.getItem('linguStory_flashcards_blacklist') || '[]');
+  if (!blacklisted.includes(cardId)) {
+    blacklisted.push(cardId);
+    localStorage.setItem('linguStory_flashcards_blacklist', JSON.stringify(blacklisted));
+  }
+};
+
+export const getFlashcardsBlacklist = () => {
+  return JSON.parse(localStorage.getItem('linguStory_flashcards_blacklist') || '[]');
 };

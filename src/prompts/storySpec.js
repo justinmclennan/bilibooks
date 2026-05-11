@@ -26,6 +26,40 @@ OUTPUT FORMAT (JSON ONLY):
 }
 `;
 
+export const VOCAB_GENERATION_PROMPT = `
+You are a language learning curriculum designer.
+Your goal is to generate a list of useful, level-appropriate vocabulary words or phrases for a specific category.
+
+CONTEXT:
+Target Language: {targetLanguage}
+Base Language: {nativeLanguage}
+CEFR Level: {level}
+Category: {category}
+
+INSTRUCTIONS:
+1. Generate exactly {count} vocabulary items.
+2. Ensure every item is strictly appropriate for the {level} level.
+3. Every item must strictly belong to the {category} category.
+4. Provide the word/phrase in {targetLanguage} and its translation in {nativeLanguage}.
+5. Avoid these words (already selected): {excludedWords}.
+6. Use natural, modern language.
+
+OUTPUT FORMAT (JSON ONLY):
+{
+  "words": [
+    {
+      "targetWord": "word in target language",
+      "nativeTranslation": "translation in native language",
+      "level": "{level}",
+      "category": "{category}",
+      "partOfSpeech": "noun/verb/etc",
+      "targetLanguage": "{targetLanguage}",
+      "nativeLanguage": "{nativeLanguage}"
+    }
+  ]
+}
+`;
+
 export const FLASHCARD_GENERATION_PROMPT = `
 You are a language learning expert and lexicographer.
 Your goal is to provide clear, accurate, and level-appropriate flashcard content for a specific word or phrase.

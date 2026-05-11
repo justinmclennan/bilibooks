@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import textToSpeech from '@google-cloud/text-to-speech';
-import { STORY_SYSTEM_PROMPT, PLANNING_SYSTEM_PROMPT, FLASHCARD_GENERATION_PROMPT } from '../src/prompts/storySpec.js';
+import { STORY_SYSTEM_PROMPT, PLANNING_SYSTEM_PROMPT, FLASHCARD_GENERATION_PROMPT, VOCAB_GENERATION_PROMPT } from '../src/prompts/storySpec.js';
 import { concatenateWavs, createSilenceBuffer } from './audioUtils.js';
 
 dotenv.config();
@@ -312,17 +312,50 @@ Continuity Context: ${previousSummaries.join(' ')}
   }
 });
 
-app.post('/api/generate-flashcard-context', async (req, res) => {
-  const { word, level, targetLanguage, baseLanguage } = req.body;
+app.post('/api/generate-vocabulary', async (req, res) => {
+  const { targetLanguage, nativeLanguage, level, category, excludedWords, count } = req.body;
 
-  if (!word || !level || !targetLanguage || !baseLanguage) {
+  if (!targetLanguage || !nativeLanguage || !level || !category) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  try {
+    const prompt = VOCAB_GENERATION_PROMPT
+      .replace(/{targetLanguage}/g, targetLanguage)
+      .replace(/{nativeLanguage}/g, nativeLanguage)
+      .replace(/{level}/g, level)
+      .replace(/{category}/g, category)
+      .replace(/{count}/g, count || 12)
+      .replace(/{excludedWords}/g, excludedWords || 'none');
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "You are a helpful language learning assistant." },
+        { role: "user", content: prompt }
+      ],
+      response_format: { type: "json_object" },
+    });
+
+    const result = JSON.parse(response.choices[0].message.content);
+    res.json(result);
+  } catch (error) {
+    console.error('Error generating vocabulary:', error);
+    res.status(500).json({ error: 'Failed to generate vocabulary' });
+  }
+});
+
+app.post('/api/generate-flashcard-context', async (req, res) => {
+  const { word, level, targetLanguage, nativeLanguage } = req.body;
+
+  if (!word || !level || !targetLanguage || !nativeLanguage) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
   try {
     const prompt = FLASHCARD_GENERATION_PROMPT
       .replace(/{targetLanguage}/g, targetLanguage)
-      .replace(/{baseLanguage}/g, baseLanguage)
+      .replace(/{baseLanguage}/g, nativeLanguage)
       .replace(/{word}/g, word)
       .replace(/{level}/g, level);
 

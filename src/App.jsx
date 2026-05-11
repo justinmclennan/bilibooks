@@ -92,7 +92,6 @@ function App() {
     const vocabString = selectedWords.map(w => w.targetWord).join(', ');
     setFormData(prev => ({
       ...prev,
-      targetLanguage: 'French',
       level: level || 'B1',
       sentenceLevelStyle: (level || 'B1').toLowerCase(),
       vocabulary: vocabString
@@ -119,7 +118,12 @@ function App() {
         )}
 
         {activeView === 'vocabulary' && (
-          <MyVocabulary onUseSelectedWords={handleUseVocabularyInStory} />
+          <MyVocabulary
+            onUseSelectedWords={handleUseVocabularyInStory}
+            targetLanguage={formData.targetLanguage}
+            nativeLanguage={formData.baseLanguage}
+            currentLevel={formData.level}
+          />
         )}
 
         {activeView === 'wizard' && currentStep === 1 && (

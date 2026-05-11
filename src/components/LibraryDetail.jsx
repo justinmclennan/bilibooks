@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getStoryById } from '../utils/library';
+import { getStoryById, deleteStory } from '../utils/library';
 import { getStoryAddedWords, addWordToStory, removeWordFromStory } from '../utils/storyAddedWords';
 import ScriptCard from './ScriptCard';
 import Flashcard from './Flashcard';
@@ -52,6 +52,13 @@ const LibraryDetail = ({ storyId, onBack }) => {
     alert('Copied to clipboard!');
   };
 
+  const handleDelete = () => {
+    if (window.confirm(`Delete "${story.title}"? This cannot be undone.`)) {
+      deleteStory(storyId);
+      onBack();
+    }
+  };
+
   const downloadFile = (text, filename, type) => {
     const blob = new Blob([text], { type });
     const url = URL.createObjectURL(blob);
@@ -83,7 +90,7 @@ const LibraryDetail = ({ storyId, onBack }) => {
             word: newWordTarget.trim(),
             level: story.level,
             targetLanguage: story.targetLanguage,
-            baseLanguage: story.baseLanguage
+            nativeLanguage: story.baseLanguage
           })
         });
 
@@ -180,12 +187,19 @@ const LibraryDetail = ({ storyId, onBack }) => {
         >
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
-        <div>
+        <div className="flex-grow">
           <h1 className="font-headline-lg text-headline-lg text-on-surface line-clamp-1">{story.title}</h1>
           <p className="text-on-surface-variant font-body-sm uppercase tracking-widest font-bold">
             {story.targetLanguage} • {story.level} • {story.chapterCount} Chapters
           </p>
         </div>
+        <button
+          onClick={handleDelete}
+          className="flex items-center gap-2 px-4 py-2 text-error font-bold hover:bg-error/10 rounded-xl transition-all border border-error/20"
+        >
+          <span className="material-symbols-outlined">delete</span>
+          Delete Story
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-lg">
