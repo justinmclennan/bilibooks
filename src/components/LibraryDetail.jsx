@@ -14,7 +14,9 @@ const LibraryDetail = ({ storyId, onBack }) => {
   const [addedWords, setAddedWords] = useState([]);
   const [newWordTarget, setNewWordTarget] = useState('');
   const [newWordNative, setNewWordNative] = useState('');
+  const [contextSentence, setContextSentence] = useState({ target: '', native: '' });
   const [addMessage, setAddMessage] = useState({ text: '', type: '' });
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     fetchStory();
@@ -62,21 +64,71 @@ const LibraryDetail = ({ storyId, onBack }) => {
     URL.revokeObjectURL(url);
   };
 
-  const handleAddWord = (e) => {
+  const handleAddWord = async (e) => {
     e.preventDefault();
     if (!newWordTarget.trim()) return;
 
-    const result = addWordToStory(storyId, newWordTarget.trim(), newWordNative.trim(), 'manual');
-    if (result.success) {
-      setAddedWords(prev => [...prev, result.word]);
-      setNewWordTarget('');
-      setNewWordNative('');
-      setAddMessage({ text: 'Word added!', type: 'success' });
-    } else {
-      setAddMessage({ text: result.message, type: 'error' });
-    }
+    setIsGenerating(true);
+    try {
+      let finalNative = newWordNative.trim();
+      let finalExTarget = contextSentence.target;
+      let finalExNative = contextSentence.native;
 
-    setTimeout(() => setAddMessage({ text: '', type: '' }), 3000);
+      // If we don't have a context sentence or native translation, fetch from AI
+      if (!finalExTarget || !finalNative) {
+        const response = await fetch('/api/generate-flashcard-context', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            word: newWordTarget.trim(),
+            level: story.level,
+            targetLanguage: story.targetLanguage,
+            baseLanguage: story.baseLanguage
+          })
+        });
+
+        if (response.ok) {
+          const aiContext = await response.json();
+          if (!finalNative) finalNative = aiContext.translation;
+          if (!finalExTarget) {
+            finalExTarget = aiContext.exampleSentence;
+            finalExNative = aiContext.exampleSentenceTranslation;
+          }
+        }
+      }
+
+      const result = addWordToStory(
+        storyId,
+        newWordTarget.trim(),
+        finalNative,
+        'manual',
+        finalExTarget,
+        finalExNative
+      );
+
+      if (result.success) {
+        setAddedWords(prev => [...prev, result.word]);
+        setNewWordTarget('');
+        setNewWordNative('');
+        setContextSentence({ target: '', native: '' });
+        setAddMessage({ text: 'Word added with context!', type: 'success' });
+      } else {
+        setAddMessage({ text: result.message, type: 'error' });
+      }
+    } catch (err) {
+      console.error('Error adding word:', err);
+      // Fallback: add without AI context if it fails
+      const result = addWordToStory(storyId, newWordTarget.trim(), newWordNative.trim(), 'manual');
+      if (result.success) {
+        setAddedWords(prev => [...prev, result.word]);
+        setNewWordTarget('');
+        setNewWordNative('');
+        setAddMessage({ text: 'Word added (AI context failed)', type: 'success' });
+      }
+    } finally {
+      setIsGenerating(false);
+      setTimeout(() => setAddMessage({ text: '', type: '' }), 3000);
+    }
   };
 
   const handleRemoveWord = (wordId) => {
@@ -84,12 +136,18 @@ const LibraryDetail = ({ storyId, onBack }) => {
     setAddedWords(prev => prev.filter(w => w.id !== wordId));
   };
 
-  const handleWordClick = (word) => {
+  const handleWordClick = (word, line) => {
     // Clean word: remove punctuation
     const cleanWord = word.replace(/[.,!?;:()"]/g, '').trim();
     if (!cleanWord) return;
 
     setNewWordTarget(cleanWord);
+    if (line) {
+      setContextSentence({ target: line.target, native: line.native });
+    } else {
+      setContextSentence({ target: '', native: '' });
+    }
+
     // Focus the native input if possible, or just scroll to the form
     document.getElementById('add-word-form')?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -208,7 +266,7 @@ const LibraryDetail = ({ storyId, onBack }) => {
                                   {line.target.split(' ').map((word, wIdx) => (
                                     <span
                                       key={wIdx}
-                                      onClick={() => handleWordClick(word)}
+                                      onClick={() => handleWordClick(word, line)}
                                       className="cursor-pointer hover:bg-primary/10 hover:text-primary rounded px-0.5 transition-colors"
                                     >
                                       {word}{' '}
@@ -257,8 +315,8 @@ const LibraryDetail = ({ storyId, onBack }) => {
                       id: w.id,
                       target: w.targetWord,
                       native: w.nativeWord,
-                      exampleSentenceTargetLanguage: null,
-                      exampleSentenceNativeLanguage: null
+                      exampleSentenceTargetLanguage: w.exampleSentenceTargetLanguage,
+                      exampleSentenceNativeLanguage: w.exampleSentenceNativeLanguage
                     }))
                   ]} />
                </div>
@@ -359,10 +417,15 @@ const LibraryDetail = ({ storyId, onBack }) => {
                 </div>
                 <button
                   type="submit"
-                  disabled={!newWordTarget.trim()}
-                  className="w-full bg-primary text-on-primary py-2 rounded-xl font-bold text-sm shadow-md hover:bg-primary/90 transition-all disabled:opacity-50"
+                  disabled={!newWordTarget.trim() || isGenerating}
+                  className="w-full bg-primary text-on-primary py-2 rounded-xl font-bold text-sm shadow-md hover:bg-primary/90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  Add Word
+                  {isGenerating ? (
+                    <>
+                      <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                      Processing...
+                    </>
+                  ) : 'Add Word'}
                 </button>
               </form>
               {addMessage.text && (

@@ -22,8 +22,8 @@ export const getGlobalFlashcards = () => {
         id: w.id,
         target: w.targetWord,
         native: w.nativeWord,
-        exampleSentenceTargetLanguage: null,
-        exampleSentenceNativeLanguage: null
+        exampleSentenceTargetLanguage: w.exampleSentenceTargetLanguage,
+        exampleSentenceNativeLanguage: w.exampleSentenceNativeLanguage
       }))
     ];
 

@@ -1,12 +1,21 @@
 import { useState, useEffect, useMemo } from 'react';
 
+const CEFR_LEVELS = ['Pre-A1', 'A1', 'A2', 'B1', 'B2'];
+const BATCH_SIZE = 20;
+
 const MyVocabulary = ({ onUseSelectedWords }) => {
-  const [vocabList, setVocabList] = useState([]);
+  const [allVocab, setAllVocab] = useState([]);
+  const [candidateVocab, setCandidateVocab] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedLevel, setSelectedLevel] = useState('B1');
   const [displayMode, setDisplayMode] = useState('both'); // 'english', 'french', 'both'
-  const [selectedWords, setSelectedWords] = useState(new Set());
+  const [selectedWords, setSelectedWords] = useState(() => {
+    const saved = localStorage.getItem('linguStory_vocab_selection');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [knownWordIds, setKnownWordIds] = useState(new Set());
+  const [usedWordIds, setUsedWordIds] = useState(new Set());
 
   // Parse CSV helper
   const parseCSV = (text) => {
@@ -26,31 +35,37 @@ const MyVocabulary = ({ onUseSelectedWords }) => {
   useEffect(() => {
     const loadVocab = async () => {
       try {
-        const response = await fetch('/vocabulary_b1_french.csv');
+        const response = await fetch('/vocabulary_all_levels.csv');
         if (!response.ok) throw new Error('Failed to fetch vocabulary file');
         const text = await response.text();
         const rawData = parseCSV(text);
 
         // Load progress from localStorage
         const storedProgress = JSON.parse(localStorage.getItem('linguStory_vocab_progress') || '{}');
+        const known = new Set();
+        const used = new Set();
 
-        // Convert to internal structure
         const structuredData = rawData.map(item => {
-          const id = `b1-fr-${item.category}-${item.nativeWord}-${item.targetWord}`.replace(/\s+/g, '-').toLowerCase();
-          const progress = storedProgress[id] || { isKnown: false, hasBeenUsedInStory: false };
+          const id = `${item.level}-${item.category}-${item.nativeWord}-${item.targetWord}`.replace(/\s+/g, '-').toLowerCase();
+          if (storedProgress[id]?.isKnown) known.add(id);
+          if (storedProgress[id]?.hasBeenUsedInStory) used.add(id);
 
           return {
             id,
+            level: item.level,
             category: item.category,
             nativeWord: item.nativeWord,
             targetWord: item.targetWord,
             partOfSpeech: item.partOfSpeech || '',
-            isKnown: progress.isKnown,
-            hasBeenUsedInStory: progress.hasBeenUsedInStory
           };
         });
 
-        setVocabList(structuredData);
+        setAllVocab(structuredData);
+        setKnownWordIds(known);
+        setUsedWordIds(used);
+
+        // Initial batch for default level
+        generateBatch(structuredData, 'B1');
       } catch (err) {
         console.error('Error loading vocabulary:', err);
         setError('Failed to load vocabulary. Please try again later.');
@@ -62,61 +77,79 @@ const MyVocabulary = ({ onUseSelectedWords }) => {
     loadVocab();
   }, []);
 
-  const saveProgress = (list) => {
+  const generateBatch = (vocab, level) => {
+    const levelWords = vocab.filter(item => item.level === level);
+    // Shuffle and pick BATCH_SIZE
+    const shuffled = [...levelWords].sort(() => 0.5 - Math.random());
+    setCandidateVocab(shuffled.slice(0, BATCH_SIZE));
+  };
+
+  const handleRefresh = () => {
+    generateBatch(allVocab, selectedLevel);
+  };
+
+  const handleLevelChange = (level) => {
+    setSelectedLevel(level);
+    generateBatch(allVocab, level);
+  };
+
+  const toggleKnown = (id) => {
+    const newKnown = new Set(knownWordIds);
+    if (newKnown.has(id)) {
+      newKnown.delete(id);
+    } else {
+      newKnown.add(id);
+    }
+    setKnownWordIds(newKnown);
+    saveProgress(newKnown, usedWordIds);
+  };
+
+  const saveProgress = (known, used) => {
     const progress = {};
-    list.forEach(item => {
-      progress[item.id] = {
-        isKnown: item.isKnown,
-        hasBeenUsedInStory: item.hasBeenUsedInStory
-      };
+    // This is a bit inefficient but matches the existing pattern
+    allVocab.forEach(item => {
+      if (known.has(item.id) || used.has(item.id)) {
+        progress[item.id] = {
+          isKnown: known.has(item.id),
+          hasBeenUsedInStory: used.has(item.id)
+        };
+      }
     });
     localStorage.setItem('linguStory_vocab_progress', JSON.stringify(progress));
   };
 
-  const toggleKnown = (id) => {
-    const newList = vocabList.map(item =>
-      item.id === id ? { ...item, isKnown: !item.isKnown } : item
-    );
-    setVocabList(newList);
-    saveProgress(newList);
-  };
-
-  const toggleSelection = (id) => {
-    const newSelection = new Set(selectedWords);
-    if (newSelection.has(id)) {
-      newSelection.delete(id);
+  const toggleSelection = (word) => {
+    let newSelection;
+    if (selectedWords.find(w => w.id === word.id)) {
+      newSelection = selectedWords.filter(w => w.id !== word.id);
     } else {
-      newSelection.add(id);
+      newSelection = [...selectedWords, word];
     }
     setSelectedWords(newSelection);
+    localStorage.setItem('linguStory_vocab_selection', JSON.stringify(newSelection));
   };
 
-  const categories = useMemo(() => {
-    const cats = [...new Set(vocabList.map(item => item.category))];
-    return cats.sort();
-  }, [vocabList]);
-
   const stats = useMemo(() => {
-    const total = vocabList.length;
-    const known = vocabList.filter(i => i.isKnown).length;
+    const total = allVocab.length;
+    const known = knownWordIds.size;
 
-    const catStats = categories.reduce((acc, cat) => {
-      const items = vocabList.filter(i => i.category === cat);
-      acc[cat] = {
+    const levelStats = CEFR_LEVELS.reduce((acc, lvl) => {
+      const items = allVocab.filter(i => i.level === lvl);
+      acc[lvl] = {
         total: items.length,
-        known: items.filter(i => i.isKnown).length
+        known: items.filter(i => knownWordIds.has(i.id)).length
       };
       return acc;
     }, {});
 
-    return { total, known, catStats };
-  }, [vocabList, categories]);
+    return { total, known, levelStats };
+  }, [allVocab, knownWordIds]);
 
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <span className="animate-spin material-symbols-outlined text-4xl text-primary">progress_activity</span>
-        <p className="mt-4 text-on-surface-variant font-body-md">Loading B1 French vocabulary...</p>
+        <p className="mt-4 text-on-surface-variant font-body-md">Loading vocabulary...</p>
       </div>
     );
   }
@@ -130,182 +163,191 @@ const MyVocabulary = ({ onUseSelectedWords }) => {
     );
   }
 
-  const currentCategoryWords = vocabList.filter(item => item.category === selectedCategory);
-
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500 pb-20">
+    <div className="w-full max-w-6xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500 pb-32">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-headline-lg font-bold text-on-surface">My Vocabulary</h1>
-          <p className="text-on-surface-variant">Track your progress and practice B1 French words.</p>
+          <h1 className="text-headline-lg font-bold text-on-surface">Vocabulary Workspace</h1>
+          <p className="text-on-surface-variant">Select words for your next story and track your progress.</p>
         </div>
         <div className="bg-primary-fixed/30 px-6 py-4 rounded-2xl border border-primary/20">
-          <div className="text-label-caps font-bold text-primary mb-1">B1 PROGRESS</div>
+          <div className="text-label-caps font-bold text-primary mb-1">{selectedLevel} PROGRESS</div>
           <div className="flex items-center gap-4">
             <div className="flex-grow h-2 bg-surface-container-highest rounded-full min-w-[120px] overflow-hidden">
               <div
                 className="h-full bg-primary transition-all duration-500"
-                style={{ width: `${(stats.known / stats.total) * 100}%` }}
+                style={{ width: `${(stats.levelStats[selectedLevel].known / stats.levelStats[selectedLevel].total) * 100}%` }}
               ></div>
             </div>
-            <span className="font-headline-sm text-on-surface">{stats.known} / {stats.total}</span>
+            <span className="font-headline-sm text-on-surface">
+              {stats.levelStats[selectedLevel].known} / {stats.levelStats[selectedLevel].total}
+            </span>
           </div>
         </div>
       </header>
 
-      {/* Categories View */}
-      {!selectedCategory ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {categories.map(cat => {
-            const catStat = stats.catStats[cat];
-            return (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className="bg-surface-container-lowest border border-outline-variant p-6 rounded-2xl text-left hover:shadow-md hover:border-primary/50 transition-all group"
-              >
-                <h3 className="font-headline-sm text-on-surface mb-2 capitalize">{cat}</h3>
-                <div className="flex items-center justify-between mt-4">
-                  <div className="flex-grow mr-4">
-                    <div className="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-secondary transition-all"
-                        style={{ width: `${(catStat.known / catStat.total) * 100}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                  <span className="text-label-caps font-bold text-on-surface-variant">
-                    {catStat.known}/{catStat.total}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <button
-              onClick={() => setSelectedCategory(null)}
-              className="flex items-center gap-2 text-primary font-bold hover:underline"
-            >
-              <span className="material-symbols-outlined">arrow_back</span>
-              Back to Categories
-            </button>
-
-            <div className="flex bg-surface-container-low rounded-lg p-1 border border-outline-variant">
-              <button
-                onClick={() => setDisplayMode('english')}
-                className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${displayMode === 'english' ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-highest'}`}
-              >
-                ENGLISH
-              </button>
-              <button
-                onClick={() => setDisplayMode('french')}
-                className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${displayMode === 'french' ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-highest'}`}
-              >
-                FRENCH
-              </button>
-              <button
-                onClick={() => setDisplayMode('both')}
-                className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${displayMode === 'both' ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-highest'}`}
-              >
-                BOTH
-              </button>
-            </div>
-          </div>
-
-          <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl overflow-hidden shadow-sm">
-            <div className="bg-surface-container-low px-6 py-4 border-b border-outline-variant flex items-center justify-between">
-               <h2 className="font-headline-md text-on-surface capitalize">{selectedCategory}</h2>
-               <span className="text-label-caps font-bold text-on-surface-variant">
-                 {stats.catStats[selectedCategory].known} / {stats.catStats[selectedCategory].total} known
-               </span>
-            </div>
-
-            <div className="divide-y divide-outline-variant">
-              {currentCategoryWords.map(word => (
-                <div
-                  key={word.id}
-                  className={`flex items-center gap-4 px-6 py-4 transition-colors ${word.isKnown ? 'bg-emerald-50/30' : 'hover:bg-surface-container-low/50'}`}
-                >
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={word.isKnown}
-                      onChange={() => toggleKnown(word.id)}
-                      className="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary cursor-pointer"
-                    />
-                  </div>
-
-                  <div
-                    className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-2 cursor-pointer"
-                    onClick={() => !word.isKnown && toggleSelection(word.id)}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left Column: Selection Area */}
+        <div className="lg:col-span-8 space-y-6">
+          <div className="bg-surface-container-low p-6 rounded-3xl border border-outline-variant space-y-6 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="flex flex-col">
+                  <label className="text-[10px] font-bold text-on-surface-variant uppercase mb-1 ml-1">Target Level</label>
+                  <select
+                    value={selectedLevel}
+                    onChange={(e) => handleLevelChange(e.target.value)}
+                    className="bg-surface-container-lowest border-outline-variant rounded-xl px-4 py-2 font-bold text-primary focus:ring-2 focus:ring-primary outline-none"
                   >
-                    <div className="flex flex-col">
-                      <span className={`font-bold transition-all ${displayMode === 'english' ? 'blur-sm select-none opacity-20' : 'text-primary'}`}>
-                        {word.targetWord}
-                      </span>
-                      <span className="text-[10px] text-on-surface-variant uppercase font-bold">{word.partOfSpeech}</span>
-                    </div>
-                    <div className="flex flex-col md:items-end md:text-right">
-                      <span className={`font-medium transition-all ${displayMode === 'french' ? 'blur-sm select-none opacity-20' : 'text-on-surface'}`}>
-                        {word.nativeWord}
-                      </span>
-                      {word.hasBeenUsedInStory && (
-                        <span className="text-[10px] bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded-full font-bold w-fit md:ml-auto mt-1">
-                          Used in story
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center">
-                    {!word.isKnown && (
-                      <button
-                        onClick={() => toggleSelection(word.id)}
-                        className={`material-symbols-outlined rounded-full p-2 transition-all ${selectedWords.has(word.id) ? 'bg-primary text-on-primary' : 'text-outline hover:bg-surface-container-low'}`}
-                      >
-                        {selectedWords.has(word.id) ? 'check_circle' : 'add_circle'}
-                      </button>
-                    )}
-                  </div>
+                    {CEFR_LEVELS.map(lvl => <option key={lvl} value={lvl}>{lvl}</option>)}
+                  </select>
                 </div>
-              ))}
+                <div className="flex flex-col">
+                   <label className="text-[10px] font-bold text-on-surface-variant uppercase mb-1 ml-1">&nbsp;</label>
+                   <button
+                     onClick={handleRefresh}
+                     className="flex items-center gap-2 px-4 py-2 bg-secondary text-on-secondary rounded-xl font-bold hover:scale-105 active:scale-95 transition-all shadow-md"
+                   >
+                     <span className="material-symbols-outlined text-sm">refresh</span>
+                     Refresh Batch
+                   </button>
+                </div>
+              </div>
+
+              <div className="flex bg-surface-container-lowest rounded-lg p-1 border border-outline-variant self-end">
+                {['english', 'french', 'both'].map(mode => (
+                  <button
+                    key={mode}
+                    onClick={() => setDisplayMode(mode)}
+                    className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all uppercase ${displayMode === mode ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-highest'}`}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {candidateVocab.map(word => {
+                const isSelected = selectedWords.some(w => w.id === word.id);
+                const isKnown = knownWordIds.has(word.id);
+                const isUsed = usedWordIds.has(word.id);
+
+                return (
+                  <div
+                    key={word.id}
+                    className={`group relative flex items-center gap-4 px-4 py-3 rounded-2xl border transition-all cursor-pointer ${
+                      isSelected ? 'bg-primary-container border-primary shadow-sm' :
+                      isKnown ? 'bg-emerald-50/50 border-emerald-100 opacity-60' :
+                      'bg-surface-container-lowest border-outline-variant hover:border-primary/50 hover:shadow-sm'
+                    }`}
+                    onClick={() => toggleSelection(word)}
+                  >
+                    <div className="flex items-center">
+                       <input
+                         type="checkbox"
+                         checked={isSelected}
+                         onChange={() => {}} // Handled by parent div
+                         className="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary cursor-pointer pointer-events-none"
+                       />
+                    </div>
+
+                    <div className="flex-grow min-w-0">
+                      <div className="flex items-baseline gap-2">
+                        <span className={`font-bold truncate transition-all ${displayMode === 'english' ? 'blur-[3px] select-none opacity-20' : 'text-on-surface'}`}>
+                          {word.targetWord}
+                        </span>
+                        <span className="text-[9px] text-on-surface-variant font-bold uppercase opacity-60">{word.partOfSpeech}</span>
+                      </div>
+                      <div className={`text-sm truncate transition-all ${displayMode === 'french' ? 'blur-[3px] select-none opacity-20' : 'text-on-surface-variant'}`}>
+                        {word.nativeWord}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      {isUsed && !isSelected && (
+                        <span className="material-symbols-outlined text-sm text-secondary" title="Used in story">auto_awesome</span>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleKnown(word.id);
+                        }}
+                        className={`material-symbols-outlined text-xl transition-colors ${isKnown ? 'text-emerald-500' : 'text-outline hover:text-emerald-400 opacity-0 group-hover:opacity-100'}`}
+                      >
+                        {isKnown ? 'check_circle' : 'circle'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-
-          {selectedWords.size > 0 && (
-            <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-surface-container-highest border border-primary/30 px-6 py-4 rounded-full shadow-2xl flex items-center gap-6 animate-in slide-in-from-bottom-10 z-50">
-              <div className="text-on-surface font-bold">
-                {selectedWords.size} word{selectedWords.size > 1 ? 's' : ''} selected
-              </div>
-              <button
-                onClick={() => {
-                   const words = vocabList.filter(w => selectedWords.has(w.id));
-                   // Update used-in-story status
-                   const newList = vocabList.map(item =>
-                     selectedWords.has(item.id) ? { ...item, hasBeenUsedInStory: true } : item
-                   );
-                   setVocabList(newList);
-                   saveProgress(newList);
-                   onUseSelectedWords(words);
-                }}
-                className="bg-primary text-on-primary px-6 py-2 rounded-full font-bold hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20 flex items-center gap-2"
-              >
-                Use in a story
-                <span className="material-symbols-outlined">auto_awesome</span>
-              </button>
-              <button
-                onClick={() => setSelectedWords(new Set())}
-                className="text-on-surface-variant hover:text-on-surface"
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-          )}
         </div>
-      )}
+
+        {/* Right Column: Selected List */}
+        <div className="lg:col-span-4 space-y-6">
+           <div className="bg-surface-container-highest p-6 rounded-3xl border border-primary/20 sticky top-4 shadow-lg">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="font-headline-sm text-on-surface">Selected Vocabulary</h2>
+                <span className="bg-primary text-on-primary px-3 py-1 rounded-full text-xs font-bold">
+                  {selectedWords.length} words
+                </span>
+              </div>
+
+              {selectedWords.length === 0 ? (
+                <div className="py-12 flex flex-col items-center justify-center text-center px-4 border-2 border-dashed border-outline-variant rounded-2xl">
+                  <span className="material-symbols-outlined text-4xl text-outline mb-4">format_list_bulleted</span>
+                  <p className="text-on-surface-variant font-medium">No words selected yet.</p>
+                  <p className="text-[10px] text-on-surface-variant mt-2 uppercase font-bold">Click words on the left to add them</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                  {selectedWords.map(word => (
+                    <div key={word.id} className="flex items-center justify-between p-3 bg-surface-container-lowest rounded-xl border border-outline-variant group">
+                       <div className="flex flex-col min-w-0">
+                         <span className="font-bold text-sm text-primary truncate">{word.targetWord}</span>
+                         <span className="text-[10px] text-on-surface-variant truncate">{word.nativeWord}</span>
+                       </div>
+                       <button
+                         onClick={() => toggleSelection(word)}
+                         className="text-outline hover:text-error transition-colors"
+                       >
+                         <span className="material-symbols-outlined text-sm">close</span>
+                       </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-8 pt-6 border-t border-outline-variant">
+                <button
+                  disabled={selectedWords.length === 0}
+                  onClick={() => {
+                     // Mark words as used in story state
+                     const newUsed = new Set(usedWordIds);
+                     selectedWords.forEach(w => newUsed.add(w.id));
+                     setUsedWordIds(newUsed);
+                     saveProgress(knownWordIds, newUsed);
+
+                     // Clear selection after generation
+                     setSelectedWords([]);
+                     localStorage.removeItem('linguStory_vocab_selection');
+
+                     onUseSelectedWords(selectedWords, selectedLevel);
+                  }}
+                  className="w-full bg-primary text-on-primary py-4 rounded-2xl font-bold flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 disabled:hover:scale-100"
+                >
+                  Generate Story
+                  <span className="material-symbols-outlined">auto_awesome</span>
+                </button>
+                <p className="text-[10px] text-on-surface-variant text-center mt-4 font-bold uppercase tracking-widest">
+                  Uses {selectedWords.length} selected words
+                </p>
+              </div>
+           </div>
+        </div>
+      </div>
     </div>
   );
 };

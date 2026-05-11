@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import textToSpeech from '@google-cloud/text-to-speech';
-import { STORY_SYSTEM_PROMPT, PLANNING_SYSTEM_PROMPT } from '../src/prompts/storySpec.js';
+import { STORY_SYSTEM_PROMPT, PLANNING_SYSTEM_PROMPT, FLASHCARD_GENERATION_PROMPT } from '../src/prompts/storySpec.js';
 import { concatenateWavs, createSilenceBuffer } from './audioUtils.js';
 
 dotenv.config();
@@ -309,6 +309,37 @@ Continuity Context: ${previousSummaries.join(' ')}
   } catch (error) {
     console.error('Error generating story:', error);
     res.status(500).json({ error: 'Failed to generate story' });
+  }
+});
+
+app.post('/api/generate-flashcard-context', async (req, res) => {
+  const { word, level, targetLanguage, baseLanguage } = req.body;
+
+  if (!word || !level || !targetLanguage || !baseLanguage) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  try {
+    const prompt = FLASHCARD_GENERATION_PROMPT
+      .replace(/{targetLanguage}/g, targetLanguage)
+      .replace(/{baseLanguage}/g, baseLanguage)
+      .replace(/{word}/g, word)
+      .replace(/{level}/g, level);
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "You are a language learning expert." },
+        { role: "user", content: prompt }
+      ],
+      response_format: { type: "json_object" },
+    });
+
+    const result = JSON.parse(response.choices[0].message.content);
+    res.json(result);
+  } catch (error) {
+    console.error('Error generating flashcard context:', error);
+    res.status(500).json({ error: 'Failed to generate flashcard context' });
   }
 });
 

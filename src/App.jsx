@@ -88,13 +88,13 @@ function App() {
     setActiveTab('wizard');
   };
 
-  const handleUseVocabularyInStory = (selectedWords) => {
+  const handleUseVocabularyInStory = (selectedWords, level) => {
     const vocabString = selectedWords.map(w => w.targetWord).join(', ');
     setFormData(prev => ({
       ...prev,
       targetLanguage: 'French',
-      level: 'B1',
-      sentenceLevelStyle: 'b1',
+      level: level || 'B1',
+      sentenceLevelStyle: (level || 'B1').toLowerCase(),
       vocabulary: vocabString
     }));
     setActiveTab('wizard');

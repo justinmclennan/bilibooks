@@ -12,7 +12,7 @@ export const getStoryAddedWords = (storyId) => {
   }
 };
 
-export const addWordToStory = (storyId, targetWord, nativeWord = '', source = 'manual') => {
+export const addWordToStory = (storyId, targetWord, nativeWord = '', source = 'manual', exampleSentenceTarget = null, exampleSentenceNative = null) => {
   const data = localStorage.getItem(STORY_ADDED_WORDS_KEY);
   let allWords = [];
   if (data) {
@@ -38,6 +38,8 @@ export const addWordToStory = (storyId, targetWord, nativeWord = '', source = 'm
     targetWord,
     nativeWord,
     source,
+    exampleSentenceTargetLanguage: exampleSentenceTarget,
+    exampleSentenceNativeLanguage: exampleSentenceNative,
     createdAt: new Date().toISOString()
   };
 
