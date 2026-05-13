@@ -26,7 +26,7 @@ OUTPUT FORMAT (JSON ONLY):
 }
 `;
 
-export const FLASHCARD_GENERATION_PROMPT = \`
+export const FLASHCARD_GENERATION_PROMPT = `
 You are a language learning expert creating flashcard content.
 Your goal is to provide a clear meaning and a natural example sentence for a specific word or phrase.
 
@@ -52,7 +52,7 @@ OUTPUT FORMAT (JSON ONLY):
   "exampleSentence": "sentence in target language",
   "exampleSentenceTranslation": "sentence translation in native language"
 }
-\`;
+`;
 
 export const STORY_SYSTEM_PROMPT = `
 You are a language-learning story generator.

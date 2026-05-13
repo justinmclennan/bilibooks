@@ -13,10 +13,10 @@ const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, fo
     setAudioError(null);
     try {
       let body = {};
-      const isBilingual = mode === 'interlinear';
+      const useStitching = mode === 'interlinear' || mode === 'shadow';
 
-      if (isBilingual) {
-        // Build segments for interlinear stitching
+      if (useStitching) {
+        // Build segments for stitching
         const segments = [];
         chapters.forEach((chapter, cIdx) => {
           chapter.lines.forEach(line => {
@@ -87,6 +87,7 @@ const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, fo
 
   const isBilingual = mode === 'interlinear';
   const hasSsml = ssml && ssml.includes('<speak>');
+  const useStitching = mode === 'interlinear' || mode === 'shadow';
 
   return (
     <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden">
@@ -141,18 +142,18 @@ const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, fo
           {!audioUrl && !isGeneratingAudio && (
             <button
               onClick={generateAudio}
-              disabled={!isBilingual && !hasSsml}
+              disabled={!useStitching && !hasSsml}
               className="flex items-center gap-2 px-6 py-2.5 bg-secondary text-on-secondary rounded-lg font-headline-sm hover:bg-secondary-container transition-all active:scale-[0.98] disabled:opacity-50"
             >
               <span className="material-symbols-outlined">headphones</span>
-              {(!isBilingual && !hasSsml) ? 'No SSML Available' : `Generate ${isBilingual ? 'Bilingual ' : ''}Audio`}
+              {(!useStitching && !hasSsml) ? 'No SSML Available' : `Generate ${mode === 'interlinear' ? 'Bilingual ' : ''}Audio`}
             </button>
           )}
 
           {isGeneratingAudio && (
             <div className="flex items-center gap-3 text-secondary">
               <span className="material-symbols-outlined animate-spin">progress_activity</span>
-              <span className="font-headline-sm">Generating {isBilingual ? 'Dual-Voice ' : ''}audio...</span>
+              <span className="font-headline-sm">Generating {mode === 'interlinear' ? 'Dual-Voice ' : ''}audio...</span>
             </div>
           )}
 

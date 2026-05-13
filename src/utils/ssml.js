@@ -47,19 +47,9 @@ export const getLineParts = (line, options = {}) => {
                   !!(line.targetSecondHalf && line.targetSecondHalf.trim());
 
   if (mode === 'shadow') {
-    if (isSplit) {
-      return [
-        { text: line.targetFirstHalf, mult: PAUSE_MULTIPLIERS.shadow, lang: 'target' },
-        { text: line.targetSecondHalf, mult: PAUSE_MULTIPLIERS.shadow, lang: 'target' },
-        { text: line.target, mult: PAUSE_MULTIPLIERS.shadow, lang: 'target' },
-      ];
-    } else {
-      // For Pre-A1/A1 Shadow, repeating the target line twice for practice
-      return [
-        { text: line.target, mult: PAUSE_MULTIPLIERS.shadow, lang: 'target' },
-        { text: line.target, mult: PAUSE_MULTIPLIERS.shadow, lang: 'target' },
-      ];
-    }
+    return [
+      { text: line.target, mult: PAUSE_MULTIPLIERS.shadow, lang: 'target' },
+    ];
   }
 
   if (mode === 'story') {
