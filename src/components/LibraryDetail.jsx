@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { getStoryById } from '../utils/library';
 import ScriptCard from './ScriptCard';
+import Flashcard from './Flashcard';
+import ReadAlongPlayer from './ReadAlongPlayer';
 
 const LibraryDetail = ({ storyId, onBack }) => {
   const [story, setStory] = useState(null);
@@ -93,7 +95,7 @@ const LibraryDetail = ({ storyId, onBack }) => {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-lg">
         <div className="md:col-span-8 space-y-lg">
           <div className="flex border-b border-outline-variant overflow-x-auto no-scrollbar bg-surface-container-lowest rounded-t-xl">
-            {['summary', 'chapters', 'vocabulary', 'scripts', 'audio'].map((tab) => (
+            {['summary', 'chapters', 'vocabulary', 'flashcards', 'scripts', 'audio'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -127,8 +129,8 @@ const LibraryDetail = ({ storyId, onBack }) => {
 
                  <div className="grid grid-cols-2 gap-4">
                     <div className="bg-surface-container-lowest p-md rounded-xl border border-outline-variant">
-                       <p className="text-[10px] font-bold text-on-surface-variant uppercase mb-1">Words per chapter</p>
-                       <p className="font-headline-sm text-on-surface">{story.wordsPerChapter}</p>
+                       <p className="text-[10px] font-bold text-on-surface-variant uppercase mb-1">Sentences per chapter</p>
+                       <p className="font-headline-sm text-on-surface">{story.sentencesPerChapter || 'N/A'}</p>
                     </div>
                     <div className="bg-surface-container-lowest p-md rounded-xl border border-outline-variant">
                        <p className="text-[10px] font-bold text-on-surface-variant uppercase mb-1">Style</p>
@@ -156,7 +158,9 @@ const LibraryDetail = ({ storyId, onBack }) => {
                      <div key={cIdx} className="space-y-6">
                         <h4 className="font-headline-sm text-primary border-b border-outline-variant pb-2 flex justify-between items-end">
                           <span>Chapter {chapter.chapterNumber}: {chapter.chapterTitle}</span>
-                          <span className="text-[10px] font-mono text-on-surface-variant italic mb-0.5">~{chapter.estimatedTargetWordCount} target words</span>
+                          <span className="text-[10px] font-mono text-on-surface-variant italic mb-0.5">
+                            {chapter.actualSentenceCount} sentences • ~{chapter.estimatedTargetWordCount} target words
+                          </span>
                         </h4>
                         <div className="space-y-8">
                           {chapter.lines?.map((line, idx) => (
@@ -183,37 +187,60 @@ const LibraryDetail = ({ storyId, onBack }) => {
                     Vocabulary List
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {story.vocabulary?.map((item, idx) => (
-                      <div key={idx} className="p-4 bg-surface-container-low rounded-xl border border-outline-variant flex justify-between items-center hover:bg-surface-container transition-colors">
-                        <span className="font-bold text-primary font-body-md">{item.target}</span>
-                        <span className="text-on-surface-variant font-body-sm">{item.native}</span>
-                      </div>
-                    ))}
+                    {story.vocabulary?.map((item, idx) => {
+                      const target = item.termTargetLanguage || item.target;
+                      const native = item.termNativeLanguage || item.native;
+                      return (
+                        <div key={idx} className="p-4 bg-surface-container-low rounded-xl border border-outline-variant flex justify-between items-center hover:bg-surface-container transition-colors">
+                          <span className="font-bold text-primary font-body-md">{target}</span>
+                          <span className="text-on-surface-variant font-body-sm">{native}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
+             )}
+
+             {activeTab === 'flashcards' && (
+               <div className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm animate-in slide-in-from-bottom-4 duration-300 min-h-[500px] flex flex-col justify-center">
+                  <Flashcard vocabulary={story.vocabulary} />
+               </div>
              )}
 
              {activeTab === 'scripts' && (
                 <div className="space-y-lg animate-in slide-in-from-bottom-4 duration-300">
                   {story.contentVersions ? (
-                    Object.entries(story.contentVersions).map(([key, data]) => (
-                      <ScriptCard
-                        key={key}
-                        id={key}
-                        label={data.label}
-                        ssml={data.ssml}
-                        readable={data.readable}
-                        mode={data.mode}
-                        targetFirst={data.targetFirst}
-                        chapters={story.chapters}
-                        formData={story.formData || {
-                          targetLanguage: story.targetLanguage,
-                          baseLanguage: story.baseLanguage
-                        }}
-                        onCopy={copyToClipboard}
-                        onDownload={downloadFile}
-                      />
-                    ))
+                    ['storyOnly', 'interlinearNativeFirst', 'shadow']
+                      .filter(key => story.contentVersions[key])
+                      .map((key) => {
+                        const data = story.contentVersions[key];
+                        const target = story.targetLanguage || 'French';
+                        const base = story.baseLanguage || 'English';
+
+                        let displayLabel = data.label;
+                        if (key === 'storyOnly') displayLabel = 'STORY - Listen and/or Read';
+                        if (key === 'interlinearNativeFirst') displayLabel = `INTERLINEAR - Translate ${base} line to ${target} before the ${target} Speaker, then repeat after ${target} Speaker`;
+                        if (key === 'shadow') displayLabel = `SHADOW - Repeat after ${target} Speaker`;
+
+                        return (
+                          <ScriptCard
+                            key={key}
+                            id={key}
+                            label={displayLabel}
+                            ssml={data.ssml}
+                            readable={data.readable}
+                            mode={data.mode}
+                            targetFirst={data.targetFirst}
+                            chapters={story.chapters}
+                            formData={story.formData || {
+                              targetLanguage: story.targetLanguage,
+                              baseLanguage: story.baseLanguage
+                            }}
+                            onCopy={copyToClipboard}
+                            onDownload={downloadFile}
+                          />
+                        );
+                    })
                   ) : (
                     <div className="py-12 flex flex-col items-center justify-center bg-surface-container-lowest rounded-xl border border-dashed border-outline">
                       <span className="material-symbols-outlined text-4xl text-outline mb-4">description</span>
@@ -228,7 +255,7 @@ const LibraryDetail = ({ storyId, onBack }) => {
                  {story.audioFiles?.length > 0 ? (
                     story.audioFiles.map((file, idx) => (
                       <div key={idx} className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm">
-                        <div className="flex justify-between items-center mb-4">
+                        <div className="flex justify-between items-center mb-4 border-b border-outline-variant pb-2">
                            <h4 className="font-headline-sm text-on-surface capitalize">
                              {file.id.replace(/([A-Z])/g, ' $1').trim()}
                            </h4>
@@ -241,7 +268,11 @@ const LibraryDetail = ({ storyId, onBack }) => {
                              Download {file.format.toUpperCase()}
                            </a>
                         </div>
-                        <audio controls src={`/api/library/${storyId}/file/${file.filename}`} className="w-full h-12" />
+                        <ReadAlongPlayer
+                          audioUrl={`/api/library/${storyId}/file/${file.filename}`}
+                          chapters={story.chapters}
+                          timepoints={file.timepoints}
+                        />
                       </div>
                     ))
                  ) : (
@@ -257,11 +288,13 @@ const LibraryDetail = ({ storyId, onBack }) => {
 
         <div className="md:col-span-4 space-y-lg">
            <div className="bg-white p-lg rounded-xl border border-outline-variant shadow-sm sticky top-4">
-              <h3 className="font-headline-sm text-headline-sm mb-lg">Export Files</h3>
+              <h3 className="font-headline-sm text-headline-sm mb-lg text-primary">Export Files</h3>
               <div className="space-y-md">
-                 {['interlinearTargetFirst', 'interlinearNativeFirst', 'shadow', 'storyOnly'].map(type => (
+                 {['storyOnly', 'interlinearNativeFirst', 'shadow'].map(type => (
                    <div key={type} className="flex flex-col gap-2 p-md bg-surface-container-low rounded-xl border border-outline-variant/30">
-                      <p className="font-label-caps text-[10px] text-on-surface-variant uppercase">{type.replace(/([A-Z])/g, ' $1')}</p>
+                      <p className="font-label-caps text-[10px] text-on-surface-variant uppercase">
+                        {type === 'storyOnly' ? 'Story' : type === 'interlinearNativeFirst' ? 'Interlinear' : 'Shadow'}
+                      </p>
                       <div className="flex gap-2">
                          <a
                            href={`/api/library/${storyId}/file/${type}.txt`}

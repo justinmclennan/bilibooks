@@ -35,12 +35,12 @@ LANGUAGE MAPPING RULES:
 - The 'native' fields (native, nativeFirstHalf, nativeSecondHalf) MUST be written ONLY in {baseLanguage}.
 - NEVER swap the languages. The learner is studying {targetLanguage} using {baseLanguage} as their base.
 
-WORDS PER CHAPTER TARGETS:
-- The 'wordsPerChapter' value is a strict target for the TARGET LANGUAGE story words (not counting translations, repeated lines, or metadata).
-- If 'wordsPerChapter' is 150: Target 125–175 target-language words.
-- If 'wordsPerChapter' is 300: Target 250–350 target-language words.
-- If 'wordsPerChapter' is 450: Target 400–500 target-language words.
-- You will be given a specific 'targetSentenceCount' to reach. YOU MUST MEET THIS COUNT.
+SENTENCE COUNT AND LENGTH TARGETS:
+- Write each chapter with approximately the requested number of target-language sentences.
+- Each target-language sentence should usually follow the selected words-per-sentence range.
+- The words-per-sentence setting refers to target-language sentence length.
+- Do not target a total word count per chapter. Instead, control chapter length by sentence count and sentence length.
+- Prioritize the selected sentence count and sentence-length range.
 
 SENTENCE LEVEL STYLE (STRICT TARGETS):
 Follow these rules for EVERY full target-language sentence based on 'sentenceLevelStyle':
@@ -67,10 +67,21 @@ Follow these rules for EVERY full target-language sentence based on 'sentenceLev
   - MUST be split into two meaningful halves for display/audio practice. The split halves should be meaningful and non-empty.
   - FORMAT: Provide 'target', 'native', 'targetFirstHalf', 'targetSecondHalf', 'nativeFirstHalf', and 'nativeSecondHalf'.
 
+INTERLINEAR TRANSLATION RULES:
+- Interlinear translations (nativeFirstHalf, nativeSecondHalf, and the 'native' field when used for interlinear) should be literal, transparent, and learner-facing.
+- Avoid overly literary or idiomatic native-language paraphrases when a clearer literal translation is possible.
+- Keep the native-language line closely aligned with the target-language line.
+- The 'chapterSummary' and standalone native-language story can be more natural, but the interlinear versions should stay close to the target-language structure.
+- EXAMPLES:
+  - "à voix basse" -> "in a low voice" (NOT "in hushed tones")
+  - "je viens de comprendre" -> "I just understood" (NOT "it dawned on me")
+  - "il y a" -> "there is/there are"
+  - "avoir besoin de" -> "to need" or "to have need of"
+
 LANGUAGE RULES:
 - ALWAYS put the target language in 'target' fields and native language in 'native' fields.
-- FOR FRENCH A1/A2: NEVER use Passé Simple. PREFER Present Tense or Passé Composé.
 - Use natural, adult-appropriate but learner-friendly vocabulary.
+- FOR FRENCH A1/A2: NEVER use Passé Simple. PREFER Present Tense or Passé Composé.
 
 CONTINUATION RULES:
 - If you are asked to 'CONTINUE' a chapter, do NOT repeat the story from the beginning.

@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
 import { generateSsml, generateReadable } from '../utils/ssml';
 import ScriptCard from './ScriptCard';
+import Flashcard from './Flashcard';
+import ReadAlongPlayer from './ReadAlongPlayer';
 import { saveStory } from '../utils/library';
 
 const Step3Results = ({ formData, storyData, resetApp }) => {
@@ -19,10 +21,9 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
   const contentVersions = useMemo(() => {
     if (!storyData || chapters.length === 0) return {};
     const configs = [
-      { id: 'interlinearTargetFirst', label: 'Interlinear (Target First)', mode: 'interlinear', targetFirst: true },
-      { id: 'interlinearNativeFirst', label: 'Interlinear (Native First)', mode: 'interlinear', targetFirst: false },
-      { id: 'shadow', label: 'Shadow Script', mode: 'shadow' },
-      { id: 'storyOnly', label: 'Story Only', mode: 'story' },
+      { id: 'storyOnly', label: 'STORY - Listen and/or Read', mode: 'story' },
+      { id: 'interlinearNativeFirst', label: `INTERLINEAR - Translate ${formData.baseLanguage} line to ${formData.targetLanguage} before the ${formData.targetLanguage} Speaker, then repeat after ${formData.targetLanguage} Speaker`, mode: 'interlinear', targetFirst: false },
+      { id: 'shadow', label: `SHADOW - Repeat after ${formData.targetLanguage} Speaker`, mode: 'shadow' },
     ];
 
     return configs.reduce((acc, config) => {
@@ -98,7 +99,7 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
       <div className="md:col-span-8 space-y-lg">
         {/* Navigation Tabs */}
         <div className="flex border-b border-outline-variant overflow-x-auto no-scrollbar bg-surface-container-lowest rounded-t-xl">
-          {['summary', 'story', 'vocabulary', 'scripts'].map((tab) => (
+          {['summary', 'story', 'vocabulary', 'flashcards', 'scripts'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -161,11 +162,18 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
                            )}
                          </div>
                          <div className="flex gap-2">
-                           {chapter.estimatedTargetWordCount && (
-                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${chapter.validationPassed ? 'text-on-surface-variant bg-surface-container border-outline-variant' : 'text-error bg-error-container border-error/20'}`}>
-                               {chapter.estimatedTargetWordCount} WORDS
-                             </span>
-                           )}
+                           <div className="flex gap-1 items-center">
+                             {chapter.actualSentenceCount && (
+                               <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${chapter.validationPassed ? 'text-on-surface-variant bg-surface-container border-outline-variant' : 'text-error bg-error-container border-error/20'}`}>
+                                 {chapter.actualSentenceCount} SENTENCES
+                               </span>
+                             )}
+                             {chapter.estimatedTargetWordCount && (
+                               <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${chapter.validationPassed ? 'text-on-surface-variant bg-surface-container border-outline-variant' : 'text-error bg-error-container border-error/20'}`}>
+                                 {chapter.estimatedTargetWordCount} WORDS
+                               </span>
+                             )}
+                           </div>
                          </div>
                       </div>
                       <p className="text-body-sm text-on-surface-variant mb-3">{chapter.storyPurpose}</p>
@@ -218,14 +226,24 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
                 Vocabulary List
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {storyData?.vocabularyList?.map((item, idx) => (
-                  <div key={idx} className="p-4 bg-surface-container-low rounded-xl border border-outline-variant flex justify-between items-center hover:bg-surface-container transition-colors">
-                    <span className="font-bold text-primary font-body-md">{item.target}</span>
-                    <span className="text-on-surface-variant font-body-sm">{item.native}</span>
-                  </div>
-                ))}
+                {storyData?.vocabularyList?.map((item, idx) => {
+                  const target = item.termTargetLanguage || item.target;
+                  const native = item.termNativeLanguage || item.native;
+                  return (
+                    <div key={idx} className="p-4 bg-surface-container-low rounded-xl border border-outline-variant flex justify-between items-center hover:bg-surface-container transition-colors">
+                      <span className="font-bold text-primary font-body-md">{target}</span>
+                      <span className="text-on-surface-variant font-body-sm">{native}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
+          )}
+
+          {activeTab === 'flashcards' && (
+             <div className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm animate-in slide-in-from-bottom-4 duration-300 min-h-[500px] flex flex-col justify-center">
+                <Flashcard vocabulary={storyData?.vocabularyList} />
+             </div>
           )}
 
           {activeTab === 'scripts' && (
@@ -245,6 +263,18 @@ const Step3Results = ({ formData, storyData, resetApp }) => {
                   onDownload={downloadFile}
                   onAudioGenerated={(audioData) => setGeneratedAudio(prev => ({ ...prev, [key]: audioData }))}
                 />
+              ))}
+
+              {Object.entries(generatedAudio).map(([key, data]) => (
+                <div key={`readalong-${key}`} className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm animate-in slide-in-from-bottom-4">
+                  <ReadAlongPlayer
+                    audioUrl={`data:audio/${data.format};base64,${data.audioContent}`}
+                    chapters={chapters}
+                    mode={contentVersions[key].mode}
+                    targetFirst={contentVersions[key].targetFirst}
+                    timepoints={data.timepoints}
+                  />
+                </div>
               ))}
             </div>
           )}

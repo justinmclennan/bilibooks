@@ -111,16 +111,18 @@ export const generateSsml = (chapters, options = {}) => {
   const normalizedChapters = Array.isArray(chapters) ? chapters : [chapters];
 
   let output = '<speak>\n';
+  let markIndex = 0;
 
   normalizedChapters.forEach((chapter, index) => {
     if (chapter.lines) {
-      chapter.lines.forEach((line) => {
+      chapter.lines.forEach((line, lineIdx) => {
         const parts = getLineParts(line, { mode, targetFirst });
-        parts.forEach((part) => {
+        parts.forEach((part, partIdx) => {
           if (part.text) {
             const escaped = escapeSsml(part.text);
             const pause = part.pause || calculatePauseSeconds(part.text, part.mult);
-            output += `  ${escaped}\n  ${formatBreak(pause)}\n`;
+            const markName = `mark_${index}_${lineIdx}_${partIdx}`;
+            output += `  <mark name="${markName}"/>${escaped}\n  ${formatBreak(pause)}\n`;
           }
         });
         output += '\n'; // Add newline between 6-line blocks for readability

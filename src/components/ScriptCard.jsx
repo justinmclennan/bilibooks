@@ -89,30 +89,30 @@ const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, fo
   const hasSsml = ssml && ssml.includes('<speak>');
 
   return (
-    <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden">
-      <div className="bg-surface-container-low px-lg py-3 flex justify-between items-center border-b border-outline-variant">
-        <h4 className="font-headline-sm text-on-surface">
-          {label} {isBilingual ? '(Dual Voice)' : '(Target Only)'}
+    <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] overflow-hidden transition-all hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.08)]">
+      <div className="bg-surface-container-low px-lg py-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-outline-variant">
+        <h4 className="font-headline-sm text-on-surface leading-tight">
+          {label}
         </h4>
-        <div className="flex bg-surface-container rounded-lg p-1">
+        <div className="flex bg-surface-container rounded-xl p-1 border border-outline-variant/30">
           <button
             onClick={() => setSubTab('preview')}
-            className={`px-4 py-1 text-xs font-bold rounded-md transition-all ${subTab === 'preview' ? 'bg-white shadow-sm text-primary' : 'text-on-surface-variant'}`}
+            className={`px-5 py-2 text-[10px] font-bold rounded-lg uppercase tracking-widest transition-all ${subTab === 'preview' ? 'bg-white shadow-sm text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}
           >
-            PREVIEW
+            Preview
           </button>
           <button
             onClick={() => setSubTab('ssml')}
-            className={`px-4 py-1 text-xs font-bold rounded-md transition-all ${subTab === 'ssml' ? 'bg-white shadow-sm text-primary' : 'text-on-surface-variant'}`}
+            className={`px-5 py-2 text-[10px] font-bold rounded-lg uppercase tracking-widest transition-all ${subTab === 'ssml' ? 'bg-white shadow-sm text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}
           >
-            SSML CODE
+            SSML Code
           </button>
         </div>
       </div>
 
-      <div className="p-lg">
-        <div className="relative mb-lg">
-          <pre className="bg-surface-container-low p-md rounded-lg overflow-x-auto text-sm font-mono text-on-surface-variant h-48 no-scrollbar border border-outline-variant">
+      <div className="p-lg md:p-xl space-y-xl">
+        <div className="relative">
+          <pre className="bg-slate-900 p-lg rounded-xl overflow-x-auto text-sm font-mono text-slate-300 h-56 no-scrollbar border border-slate-800 shadow-inner">
             {subTab === 'preview' ? readable : ssml}
           </pre>
           <div className="absolute top-2 right-2 flex gap-1">
@@ -137,12 +137,12 @@ const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, fo
           </div>
         </div>
 
-        <div className="pt-lg border-t border-outline-variant flex flex-col sm:flex-row items-center gap-lg">
+        <div className="pt-xl border-t border-outline-variant flex flex-col sm:flex-row items-center gap-lg">
           {!audioUrl && !isGeneratingAudio && (
             <button
               onClick={generateAudio}
               disabled={!isBilingual && !hasSsml}
-              className="flex items-center gap-2 px-6 py-2.5 bg-secondary text-on-secondary rounded-lg font-headline-sm hover:bg-secondary-container transition-all active:scale-[0.98] disabled:opacity-50"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-3 bg-primary text-on-primary rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary-container hover:text-on-primary-container transition-all active:scale-[0.98] disabled:opacity-50 disabled:shadow-none"
             >
               <span className="material-symbols-outlined">headphones</span>
               {(!isBilingual && !hasSsml) ? 'No SSML Available' : `Generate ${isBilingual ? 'Bilingual ' : ''}Audio`}
@@ -150,18 +150,18 @@ const ScriptCard = ({ id, label, ssml, readable, mode, targetFirst, chapters, fo
           )}
 
           {isGeneratingAudio && (
-            <div className="flex items-center gap-3 text-secondary">
+            <div className="flex items-center gap-3 text-primary bg-primary/5 px-6 py-3 rounded-xl border border-primary/20 animate-pulse">
               <span className="material-symbols-outlined animate-spin">progress_activity</span>
-              <span className="font-headline-sm">Generating {isBilingual ? 'Dual-Voice ' : ''}audio...</span>
+              <span className="font-bold">Generating {isBilingual ? 'Dual-Voice ' : ''}audio...</span>
             </div>
           )}
 
           {audioUrl && (
-            <div className="flex flex-col sm:flex-row items-center gap-md w-full">
-              <audio controls src={audioUrl} className="h-10 flex-grow" />
+            <div className="flex flex-col sm:flex-row items-center gap-lg w-full">
+              <audio controls src={audioUrl} className="h-12 flex-grow" />
               <button
                 onClick={downloadAudio}
-                className="flex items-center gap-2 px-4 py-2 border-2 border-secondary text-secondary rounded-lg font-label-caps hover:bg-secondary/5 transition-all"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto px-6 py-2.5 border-2 border-primary text-primary rounded-xl font-bold hover:bg-primary/5 transition-all"
               >
                 <span className="material-symbols-outlined text-sm">download</span>
                 Download {audioFormat.toUpperCase()}

@@ -1,10 +1,10 @@
 
 const Step2Builder = ({ formData, updateFormData, nextStep, prevStep, isGenerating }) => {
   const sentenceLevelStyles = [
-    { id: 'pre-a1', label: 'Pre-A1', sub: '3–5 words' },
-    { id: 'a1', label: 'A1', sub: '5–7 words' },
-    { id: 'a2', label: 'A2', sub: '8–13 words' },
-    { id: 'b1', label: 'B1', sub: '14–20 words' },
+    { id: 'pre-a1', label: 'Beginner', sub: '3–5 words' },
+    { id: 'a1', label: 'Beginner+', sub: '5–8 words' },
+    { id: 'a2', label: 'Intermediate', sub: '9–14 words' },
+    { id: 'b1', label: 'Intermediate+', sub: '14–20 words' },
   ];
 
   const planningModes = [
@@ -82,42 +82,54 @@ const Step2Builder = ({ formData, updateFormData, nextStep, prevStep, isGenerati
           </div>
 
           <div>
-            <label className="block font-headline-sm text-headline-sm text-on-surface mb-1">Words Per Chapter</label>
-            <p className="text-[11px] text-on-surface-variant mb-2">Controls the approximate length of each target-language chapter, not counting translations or repeated lines.</p>
+            <label className="block font-headline-sm text-headline-sm text-on-surface mb-1">Sentences Per Chapter</label>
+            <p className="text-[11px] text-on-surface-variant mb-2">Controls the length of each target-language chapter by the number of sentences (10–30).</p>
             <select
-              value={formData.wordsPerChapter === 150 || formData.wordsPerChapter === 300 || formData.wordsPerChapter === 450 ? formData.wordsPerChapter : 'custom'}
+              value={[10, 15, 20, 25, 30].includes(formData.sentencesPerChapter) ? formData.sentencesPerChapter : 'custom'}
               onChange={(e) => {
                  const val = e.target.value;
                  if (val === 'custom') {
-                   updateFormData({ wordsPerChapter: 200 });
+                   updateFormData({ sentencesPerChapter: 12 });
                  } else {
-                   updateFormData({ wordsPerChapter: parseInt(val) });
+                   updateFormData({ sentencesPerChapter: parseInt(val) });
                  }
               }}
               disabled={isGenerating}
               className="w-full rounded-xl border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary bg-surface-container-low font-body-md p-3 text-on-surface transition-colors disabled:opacity-50"
             >
-              <option value={150}>Short (~150 words)</option>
-              <option value={300}>Medium (~300 words)</option>
-              <option value={450}>Long (~450 words)</option>
+              <option value={10}>10 Sentences (Short)</option>
+              <option value={15}>15 Sentences (Medium)</option>
+              <option value={20}>20 Sentences (Long)</option>
+              <option value={25}>25 Sentences (Extra Long)</option>
+              <option value={30}>30 Sentences (Max)</option>
               <option value="custom">Custom</option>
             </select>
-            {(formData.wordsPerChapter !== 150 && formData.wordsPerChapter !== 300 && formData.wordsPerChapter !== 450) && (
-               <input
-                 type="number"
-                 value={formData.wordsPerChapter}
-                 onChange={(e) => updateFormData({ wordsPerChapter: parseInt(e.target.value) || 100 })}
-                 className="mt-2 w-full rounded-xl border-outline-variant bg-surface-container-low p-3"
-                 placeholder="Enter word count..."
-               />
+            {(![10, 15, 20, 25, 30].includes(formData.sentencesPerChapter)) && (
+               <div className="mt-2 space-y-1">
+                 <input
+                   type="number"
+                   min="10"
+                   max="30"
+                   value={formData.sentencesPerChapter}
+                   onChange={(e) => {
+                     let val = parseInt(e.target.value) || 10;
+                     if (val < 10) val = 10;
+                     if (val > 30) val = 30;
+                     updateFormData({ sentencesPerChapter: val });
+                   }}
+                   className="w-full rounded-xl border-outline-variant bg-surface-container-low p-3"
+                   placeholder="Enter sentence count (10-30)..."
+                 />
+                 <p className="text-[10px] text-on-surface-variant px-1">Choose between 10 and 30 sentences.</p>
+               </div>
             )}
           </div>
         </div>
 
         <div>
-          <label className="block font-headline-sm text-headline-sm text-on-surface mb-1">Sentence Length / Level Style</label>
+          <label className="block font-headline-sm text-headline-sm text-on-surface mb-1">Words Per Sentence</label>
           <p className="text-[11px] text-on-surface-variant mb-4">
-            Pre-A1 and A1 use one sentence per line. A2 and B1 use longer connected sentences split into two lines for audio practice.
+            Beginner and Beginner+ use one sentence per line. Intermediate and Intermediate+ use longer connected sentences split into two lines for audio practice.
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {sentenceLevelStyles.map((style) => {
